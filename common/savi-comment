@@ -1,0 +1,22 @@
+# Provides SAVI citations and comments
+#
+# Chuan Wang and Peifen Zhang @ Rhee-lab
+# Department of Plant Biology
+# Carnegie Institution for Science
+# Date: June 19, 2014
+#
+# Columns: savi-file	citation	comment
+#
+## To-do:
+## comment of ic is the same as comp-upp
+## superpathway is not included in this file yet
+#
+comp-rxn	PMNRXN2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: Enzyme(s) that catalyzes one or more of the key reactions in this pathway were predicted in $species. <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>
+aipp	PMNAIPP2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: This pathway is on the list of Accept-If-Predicted Pathways (AIPP) generated for the COMET project, which includes pathways that are present widely throughout the plant kingdom. The AIPP list contains pathways that are automatically accepted if they are predicted for any plant species database. However, AIPP pathways are not automatically imported into databases if they are not predicted by the Pathologic program. <A href=\"https://www.plantcyc.org/about/savi-pipeline\">[more info]</A>
+comp-rxn-taxon	PMNRXNTAXON2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: The expected taxonomic range of the pathway includes $species, and, enzyme(s) that catalyzes one or more of the key reactions in this pathway were predicted in $species. <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>
+comp-rxn-warning	PMNRXN2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: Enzyme(s) that catalyzes one or more of the key reactions in this pathway were predicted in $species. However, there is some evidence in the literature that this pathway is specialized to species that do not include $species. <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>
+comp-taxon	PMNTAXON2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: The expected taxonomic range of the pathway includes $species. <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>
+comp-upp	PMNUPP2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: This pathway is on the list of Ubiquitous Plant Pathways (UPP) that was generated for the COMET project, which includes pathways that are thought to be present in all or most land plants. All UPP pathways are automatically imported into databases regardless of Pathologic predictions. <A href=\"https://www.plantcyc.org/about/savi-pipeline\">[more info]</A>
+ic	PMNIC2019:EV-IC	<i>Supporting evidence for this pathway in $species</i>: This pathway is on the list of Ubiquitous Plant Pathways (UPP) that was generated for the COMET project, which includes pathways that are thought to be present in all or most land plants. All UPP pathways are automatically imported into databases regardless of Pathologic predictions. <A href=\"https://www.plantcyc.org/about/savi-pipeline\">[more info]</A>
+comp-cvp	PMNCVP2019:EV-COMP-HINF	<i>Supporting evidence for this pathway in $species</i>: This pathway is on the list of Common Viridiplantae Pathways (CVP) generated for the COMET project, which includes pathways that are thought to be present in all or most Viridiplantae species including algae. All UPP pathways are automatically imported into databases regardless of Pathologic predictions. <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>
+super	PMNSP2019:EV-COMP-HINF	<i>This superpathway was predicted to exist in this species using PathoLogic (version 23.0). All of its sub-pathway(s) have been accepted using the SAVI (v.3.0.2) pipeline. Please see the subpathways to determine the level of support for this superpathway in $species</i>: <A href=\"http://www.plantcyc.org/about/savi_pipeline\">[more info]</A>

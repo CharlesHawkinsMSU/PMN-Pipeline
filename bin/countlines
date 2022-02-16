@@ -1,0 +1,12 @@
+#!/usr/bin/perl -w
+
+my %table;
+while(<STDIN>)
+{
+	chomp;
+	$table{$_}++;
+}
+foreach(sort(keys %table))
+{
+	print $_,": ",$table{$_},"\n";
+}

@@ -1,0 +1,3 @@
+chloroplast stroma
+chloroplast thylakoid membrane
+chloroplast thylakoid lumen

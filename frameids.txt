@@ -1,0 +1,2 @@
+Frame IDs can have alphanumeric characters and any of the following:
+-_.:+?
