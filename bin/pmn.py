@@ -9,10 +9,10 @@
 from sys import stdin, stdout, stderr
 
 if __name__ == "__main__":
-    stderr.write("The pmn.py file contains utility functions used by the other PMN python scripts; it doesn't need to be run directly\n")
+    stderr.write("The pmn.py file contains utility functions used by the other PMN python scripts; it doesn't do anything when run directly. The pipeline is mostly run via the pmn-pipeline script\n")
     exit(0)
 
-# Convenience function that allows filenames and already-open files to be used interchangeably. 'where' should be either an already-open file (returned as-is), a filename (opened with the specified mode, and the file handle returned), or either None or '-' (stdin or stdout is returned, as appropriate given mode)
+# Convenience function that allows filenames and already-open files to be used interchangeably. 'where' should be either an already-open file (returned as-is), a filename (opened with the specified mode, and the file handle returned), or either None or '-' (stdin or stdout is returned, as appropriate given the value of mode)
 def openfile(where, mode = 'r'):
     if where is None or where == '-':
         return stdin if mode.startswith('r') else stdout
@@ -62,7 +62,7 @@ def tsv_to_dict(file, sep = '\t'):
         d[fields[0]] = fields[1]
     return d
 
-# If d is a dictlist (dict with lists as values), adds val to the list pointed to by key in d. If val already exists in that list, nothing happens. If key isn't in d, it is added pointing to a one-element list containing val. Modifies d.
+# If <d> is a dictlist (dictionary with lists as values), adds <val> to the list pointed to by <key> in <d>. If <val> already exists in that list, nothing happens. If <key> isn't in <d>, it is added, pointing to a one-element list containing <val>. Modifies <d>.
 def add_to_dictlist(d, key, val):
     try:
         cv = d[key]
@@ -71,20 +71,36 @@ def add_to_dictlist(d, key, val):
     except KeyError:
         d[key] = [val]
 
-# Inverts a dictionary, returning a new one with d's values as keys and vice-versa. If multiple of d's keys point to the same value only one of them is retained; which one is undefined
+# Inverts a dictionary, returning a new one with <d>'s values as keys and vice-versa. If multiple of <d>'s keys point to the same value only one of them is retained; which one is undefined
 def invert_dict(d):
     di = {}
     for key, val in d.items():
         di[val] = key
     return di
 
-# Inverts a dictlist (dictionary with lists as values) so that all elements of d's values become keys pointing to a list of all the keys whose values in d contained that key. So for example invert_dictlist({'rose':['red','white'], 'buttercup':['yellow'], 'daffodil':['yellow','white']}) returns {'red':['rose'], 'white':['rose','daffodil'], 'yellow':['buttercup', 'daffodil']}
+# Inverts a dictlist (dictionary with lists as values) so that all elements of <d>'s values become keys pointing to a list of all the keys whose values in <d> contained that key. So for example invert_dictlist({'rose':['red','white'], 'buttercup':['yellow'], 'daffodil':['yellow','white']}) returns {'red':['rose'], 'white':['rose','daffodil'], 'yellow':['buttercup', 'daffodil']}
 def invert_dictlist(d):
     di = {}
     for key, vals in d.items():
         for val in vals:
             add_to_dictlist(di, val, key)
     return di
+
+def parse_fasta_header(line, sep = ' ', kv_sep = '='):
+    fasta_dict = {}
+    line = line.rstrip()
+    if line:
+        if line[0] == '>':
+            line = line[1:]
+        fields = line.split(sep)
+        i = 0
+        for field in fields:
+            kv = field.split(kv_sep, 1)
+            if len(kv) == 2:
+                fasta_dict[kv[0]] = kv[1]
+            fasta_dict[str(i)] = field
+            i += 1
+    return fasta_dict
 
 # Represents a GFF entry
 class GFF_entry:

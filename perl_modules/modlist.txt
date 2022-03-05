@@ -1,0 +1,13 @@
+https://cpan.metacpan.org/authors/id/E/EX/EXODIST/Test-Simple-1.302189.tar.gz
+https://cpan.metacpan.org/authors/id/H/HA/HAARG/Role-Tiny-2.002004.tar.gz
+https://cpan.metacpan.org/authors/id/E/ET/ETHER/Try-Tiny-0.31.tar.gz
+https://cpan.metacpan.org/authors/id/R/RJ/RJBS/Test-Fatal-0.016.tar.gz
+https://cpan.metacpan.org/authors/id/H/HA/HAARG/Sub-Quote-2.006006.tar.gz
+https://cpan.metacpan.org/authors/id/H/HA/HAARG/Test-Needs-0.002009.tar.gz
+https://cpan.metacpan.org/authors/id/E/ET/ETHER/Class-Method-Modifiers-2.13.tar.gz
+https://cpan.metacpan.org/authors/id/H/HA/HAARG/Moo-2.005004.tar.gz
+https://cpan.metacpan.org/authors/id/D/DA/DAGOLDEN/Sub-Uplevel-0.2800.tar.gz
+https://cpan.metacpan.org/authors/id/B/BI/BIGJ/Test-Warn-0.36.tar.gz
+https://cpan.metacpan.org/authors/id/Y/YA/YANICK/Parallel-ForkManager-2.02.tar.gz
+https://cpan.metacpan.org/authors/id/T/TO/TODDR/IO-Tty-1.16.tar.gz
+https://cpan.metacpan.org/authors/id/D/DO/DOY/IO-Pty-Easy-0.10.tar.gz

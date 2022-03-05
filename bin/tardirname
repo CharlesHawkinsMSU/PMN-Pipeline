@@ -1,0 +1,3 @@
+#!/bin/sh
+# Given a tar file, gets the name of the top-level directory it will extract into. Will give wrong results if that dir name contains a '/'
+tar tf $1 | head -1 | awk -F '/' '{print $1}'

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Installs one perl module; give it a url of the tarfile or the directory where that tarfile has been extracted
+
+if [[ -z $perl_mods ]]; then
+	echo '$perl_mods variable is not set. Please source pmn-environment.sh before running this script'
+	exit 1
+fi
+
+mkdir -p $perl_mods/Downloads
+cd $perl_mods/Downloads
+
+if [[ $1 =~ :// ]]; then
+	if ! mod_dir=$($perl_mods/download-module $1); then
+		exit 1
+	fi
+else
+	mod_dir=$1
+fi
+
+cd $mod_dir
+if ! perl Makefile.PL PREFIX=$perl_mods; then
+	echo "$mod_dir failed to configure"
+	exit 1
+fi
+
+if ! make; then
+	echo "$mod_dir failed to build"
+	exit 1
+fi
+
+if ! make test; then
+	echo "$mod_dir failed post-build tests"
+	exit 1
+fi
+
+if ! make install; then
+	echo "$mod_dir failed install"
+	exit 1
+fi
+echo "$mod_dir installed successfully"

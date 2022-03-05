@@ -37,7 +37,7 @@
 
 (defconstant *pmn-citations* '("PMNUPP" "PMNAIPP" "PMNRXN" "PMNRXNTAXON" "PMNTAXON" "PMNIC" "PMNSP" "E2P2PMN" "PMNCVP") "List of partial frame names for the savi citations, used when copying the citations from one PGDB to the others")
 
-(defun create-savi-citations (year input-dir &key e2p2-version (ptools-version (ptools-version)) savi-version (rpsd-version e2p2-version) metacyc-version (kb-list (list (current-kb))))
+(defun create-savi-citations (&key (year (util.date-time:date-time-year (util.date-time:ut-to-date-time (get-universal-time)))) (input-dir (sys:getenv "savi")) e2p2-version (ptools-version (ptools-version)) savi-version (rpsd-version e2p2-version) metacyc-version (kb-list (list (current-kb))))
   "Creates the SAVI citations for the given year. The input-dir should point to the SAVI input directory containing CAPP.txt, etc."
   (let* ((org-list (mapcar #'as-orgid kb-list))
 		 (src-org (first org-list))
@@ -67,7 +67,7 @@
 						  do (copy-frame cit-frame cit-frame
 										 :kb (find-kb src-org)
 										 :new-kb (current-kb)))
-				 saving closing)))
+				 )))
 
 (defun create-upp-citation (year inputfile-version ptools-version)
   "Creates the SAVI citation for UPP for the given year"

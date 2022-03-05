@@ -5,3 +5,7 @@ lisp/fix.lisp
 pmn-release-pipeline
 E2P2
 lisp/fixed.lisp
+perl_modules/Downloads
+perl_modules/lib64
+perl_modules/share
+bin/__pycache__

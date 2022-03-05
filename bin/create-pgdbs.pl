@@ -57,8 +57,8 @@ foreach my $fa (`ls $fafolder`) {
     my $ptools = <$in>;
     chomp $ptools;
     close $in;
-	print STDERR "$ptools -patho $fafolder/$fa/ -disable-metadata-saving";
-    $pty->spawn("$ptools -patho $fafolder/$fa/ -disable-metadata-saving");
+	print STDERR "umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving";
+    $pty->spawn("umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving");
     open(OUT, ">$fafolder/$fa/create-$fa.log") or die $!;
     while ($pty->is_active) {
         my $o = $pty->read(1);

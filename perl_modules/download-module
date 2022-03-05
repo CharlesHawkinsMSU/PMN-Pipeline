@@ -1,0 +1,24 @@
+#!/bin/sh
+# Downloads the specified module
+
+if [[ -z $perl_mods ]]; then
+	echo '$perl_mods variable is not set. Please source pmn-environment.sh before running this script'
+	exit 1
+fi
+
+tarfile=$(echo $1 | awk -F '/' '{print $NF}')
+cd $perl_mods/Downloads
+if [[ -a $tarfile ]]; then
+	echo "$tarfile already exists, will not redownload" >&2
+else
+	if ! wget $1; then
+		echo "Download of $1 failed" >&2
+		exit 1
+	fi
+fi
+extdir=$(tardirname $tarfile)
+if ! tar xf $tarfile; then
+	echo "Extraction of $1 failed" >&2
+	exit 1
+fi
+echo $extdir
