@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Downloads the specified module
 
 if [[ -z $perl_mods ]]; then

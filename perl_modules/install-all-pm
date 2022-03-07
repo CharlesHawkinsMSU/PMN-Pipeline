@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Installs all the perl modules in perl_modules/modlist.txt in order
 
 if [[ -z $perl_mods ]]; then

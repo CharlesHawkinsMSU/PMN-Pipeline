@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Installs one perl module; give it a url of the tarfile or the directory where that tarfile has been extracted
 
 if [[ -z $perl_mods ]]; then
