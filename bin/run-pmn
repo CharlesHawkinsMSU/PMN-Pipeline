@@ -9,6 +9,7 @@ function help() {
 	echo "busco	Run BUSCO on the specified protein fasta file"
 }
 
+echo "command: $1"
 case $1 in
 	help)
 		help
