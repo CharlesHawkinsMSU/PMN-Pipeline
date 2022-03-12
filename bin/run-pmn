@@ -1,0 +1,24 @@
+#!/bin/bash
+# This is the general script for running the PMN pipeline
+
+function help() {
+	echo "Usage: $0 cmd [cmd-specific options]"
+	echo ""
+	echo "Runs the PMN pipeline. Recognized commands:"
+	echo "help	Print this help text and exit"
+	echo "busco	Run BUSCO on the specified protein fasta file"
+}
+
+case $1 in
+	help)
+		help
+		exit 0
+		;;
+	busco)
+		busco \
+			-i $2\
+			-o $2.busco\
+			-m protein\
+			-l $busco/$busco_db\
+			-f
+esac
