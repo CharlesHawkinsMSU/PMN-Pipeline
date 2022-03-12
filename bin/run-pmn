@@ -19,6 +19,6 @@ case $1 in
 			-i $2\
 			-o $2.busco\
 			-m protein\
-			-l $busco/$busco_db\
+			-l $PMN_BUSCO/$PMN_BUSCO_DB\
 			-f
 esac

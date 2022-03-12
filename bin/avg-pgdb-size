@@ -1,31 +1,30 @@
 #!/bin/bash
-# Calculates the average size on disk of the PGDBs in the given directory, with and without the data directories
+# Calculates the average size on disk of the pgdbs in the given directory (give it ptools-local/pgdbs/user or equivalent), with and without the data directories
 
 if [[ -z $1 ]]; then
-	PGDB_DIR=.
+	pgdb_dir=.
 else
-	PGDB_DIR=$1
+	pgdb_dir=$1
 fi
 
-PGDB_COUNT=0
-PGDB_COUNT_ND=0
-PGDB_TOTAL=0
-for PGDB in $(ls --color=never $PGDB_DIR); do
-	if [[ -e $PGDB/default-version ]]; then
-		VER=$(cat $PGDB/default-version)
-		if [[ -e $PGDB/$VER ]]; then
-			PGDB_SIZE=$(du -sb $PGDB/$VER | cut -d '	' -f 1)
-			DATA_SIZE=0
-			if [[ -e $PGDB/$VER/data ]]; then
-				DATA_SIZE=$(du -sb $PGDB/$VER/data | cut -d '	' -f 1)
+pgdb_count=0
+pgdb_count_nd=0
+pgdb_total=0
+for pgdb in $(ls --color=never $pgdb_dir); do
+	if [[ -e $pgdb/default-version ]]; then
+		ver=$(cat $pgdb/default-version)
+		if [[ -e $pgdb/$ver ]]; then
+			pgdb_size=$(du -sb $pgdb/$ver | cut -d '	' -f 1)
+			data_size=0
+			if [[ -e $pgdb/$ver/data ]]; then
+				data_size=$(du -sb $pgdb/$ver/data | cut -d '	' -f 1)
 			fi
-			PGDB_COUNT=$(($PGDB_COUNT+1))
-			PGDB_TOTAL=$(($PGDB_TOTAL+$PGDB_SIZE))
-			PGDB_TOTAL_ND=$(($PGDB_TOTAL_ND+$PGDB_SIZE-$DATA_SIZE))
+			pgdb_count=$(($pgdb_count+1))
+			pgdb_total=$(($pgdb_total+$pgdb_size))
+			pgdb_total_nd=$(($pgdb_total_nd+$pgdb_size-$data_size))
 		fi
 	fi
-	echo -n "$PGDB_COUNT"
+	echo -n "$pgdb_count"
 done
-echo "Average (with data): $(($PGDB_TOTAL/$PGDB_COUNT))"
-echo "Average (without data): $(($PGDB_TOTAL_ND/$PGDB_COUNT))"
-
+echo "Average (with data): $(($pgdb_total/$pgdb_count))"
+echo "Average (without data): $(($pgdb_total_nd/$pgdb_count))"
