@@ -21,33 +21,58 @@ function help() {
 		echo "Run E2P2 on the specified protein fasta file input.fa. Several output files will be generated, all with names starting with the specified output name (if not given, the output name will be the input name + .e2p2v4). The file output.fa.e2p2v4.orxn.pf is the one used in subsequent steps"
 		echo ""
 		echo "E2P2 (the Ensemble Enzyme Prediction Pipeline) is software published by PMN to predict enyzyme functions from protein sequences (https://plantcyc.org/about/documentation/e2p2-description). At present it uses blastp and PRIAM with a custom weighting scheme to make predictions. Predictions are based on the Reference Protein Sequence Dataset (RPSD), assembled by PMN from various sources, that contains sequences of known enzymes (based on experimental evidence) and the reactions they are known to catalyze"
+	elif [[ $2 == "revise" ]]; then
+		$PMN_BIN/revise_pf.py -h
 	else
 		echo "Unrecognized command: $2"
 	fi
 }
 
-echo "Command: $1"
-case $1 in
+cmd=$1
+echo "Command: $cmd"
+cmd_args=("${@:2}")
+echo "Args:" ${cmd_args[@]}
+case $cmd in
 	help)
-		help $0 $2
+		help $0 ${cmd_args[0]}
 		exit 0
+		;;
+	newproj)
+		dir=${cmd_args[0]:-.}
+		if [[ ! -a $dir ]]; then
+			mkdir -p $dir
+		fi
+		cp -r $PMN_PGP/project-template/* $dir
 		;;
 	busco)
 		busco \
-			-i $2 \
-			-o ${3:-$2.busco} \
+			-i ${cmd_args[0]} \
+			-o ${cmd_args[1]:-${cmd_args[0]}.busco} \
 			-m protein \
 			-l ${PMN_BUSCO:?Error: variable \$PMN_BUSCO not set}/$PMN_BUSCO_DB \
-			-f
+			-f \
+			--offline
 		;;
 	e2p2)
 		$PMN_E2P2/pipeline/run_pipeline.py \
-			--input $2 \
-			--output ${3:-$2.e2p2v4} \
-			--blastp blastp \
+			--input ${cmd_args[0]} \
+			--output ${cmd_args[1]:-${cmd_args[0]}.e2p2v4} \
+			--blastp ${PMN_E2P2_BLASTP:-blastp} \
 			--java java \
 			--priam_search $PMN_E2P2/PRIAM_search.jar \
 			--priam_profile $PMN_E2P2/rpsd_current/profiles \
 			--rpsd $PMN_E2P2/rpsd_current/blastdb/rpsd-${PMN_E2P2_RPSD}.fasta
+		;;
+	revise)
+		$PMN_BIN/revise_pf.py ${cmd_args[@]}
+		;;
+	pgdb-prepare)
+		$PMN_BIN/pgdb-prepare.pl ${cmd_args[@]}
+		;;
+	pgdb-create)
+		$PMN_BIN/create-pgdbs.pl ${cmd_args[@]}
+		;;
+	*)
+		$PMN_BIN/pmn-pipeline $cmd
 		;;
 esac
