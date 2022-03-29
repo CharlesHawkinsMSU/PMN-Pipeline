@@ -66,11 +66,11 @@ case $cmd in
 	revise)
 		$PMN_BIN/revise_pf.py ${cmd_args[@]}
 		;;
-	pgdb-prepare)
-		$PMN_BIN/pgdb-prepare.pl ${cmd_args[@]}
+	create-prepare)
+		$PMN_BIN/pgdb-prepare.pl ${cmd_args[0]:-pgdb-table.txt} ${cmd_args[1]:-e2p2} ${cmd_args[2]:-pgdb-masters} ${cmd_args[3]:-$PT_EXE} ${cmd_args[4]:-$PGDBS}
 		;;
-	pgdb-create)
-		$PMN_BIN/create-pgdbs.pl ${cmd_args[@]}
+	create)
+		$PMN_BIN/create-pgdbs.pl ${cmd_args[0]:-pgdb-masters} ${cmd_args[1]:-1}
 		;;
 	*)
 		$PMN_BIN/pmn-pipeline $cmd
