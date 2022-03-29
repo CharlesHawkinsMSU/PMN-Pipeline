@@ -72,6 +72,21 @@ case $cmd in
 	create)
 		$PMN_BIN/create-pgdbs.pl ${cmd_args[0]:-pgdb-masters} ${cmd_args[1]:-1}
 		;;
+	savi-prepare)
+		orgname=${cmd_args[0]}
+		cycname=${orgname,,}cyc
+		mkdir -p savi/input/$orgname
+		mkdir -p savi/output/$orgname
+		cp $PMN_PGDBS/$cycname/$(cat $PMN_PGDBS/$cycname/default-version)/data/*.dat savi/input/$orgname
+		cp e2p2/${cmd_args[1]} savi/input/$orgname
+		$PMN_BIN/fix-ncbi-taxon.py savi/input/$orgname/species.dat
+		;;
+	savi)
+		orgname=${cmd_args[0]}
+		proj=$(pwd)
+		cd $PMN_SAVI/current
+		./runSAVI3.1.sh $proj/savi/input/$orgname $proj/savi/output/$orgname
+		;;
 	*)
 		$PMN_BIN/pmn-pipeline $cmd
 		;;
