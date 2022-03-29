@@ -64,7 +64,7 @@ foreach my $fa (`ls $masters_folder`) {
     chomp $fa;
     my $saved = 0;
     print STDERR "[$fa] started.\n";
-    system "perl $FindBin::Bin/../pmn-release-pipeline/pmn-release-pipeline-general.pl $masters_folder/$fa/$master_file $masters_folder/$fa/${master_file}.log";
+    system "perl $FindBin::Bin/../perl_scripts/pmn-release-pipeline-general.pl $masters_folder/$fa/$master_file $masters_folder/$fa/${master_file}.log";
     print STDERR "[$fa] done.\n";
 }
 

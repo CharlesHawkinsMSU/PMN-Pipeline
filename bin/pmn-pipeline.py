@@ -89,10 +89,8 @@ with tryopen(orgfilename, 'r') as orgfile:
         orgtable[orgid] = org
         line_n += 1
 print(orgtable)
-prp_path = path.realpath(path.join(script_path, '..','pmn-release-pipeline'))
 ps_path = path.realpath(path.join(script_path,  '..','perl_scripts'))
 print(script_path)
-print(prp_path)
 
 # Runs the specified function for each org in orglist, assuming each one has its own folder in basedir
 def for_each_org(fn, basedir, orglist):
@@ -102,7 +100,7 @@ def for_each_org(fn, basedir, orglist):
 masterfile = stage
 if not masterfile.endswith('.master'):
     masterfile = masterfile + '.master'
-masterscript = path.join(prp_path, 'pmn-release-pipeline-general.pl')
+masterscript = path.join(ps_path, 'pmn-release-pipeline-general.pl')
 for org in orgtable:
     stderr.write('Running %s on %s\n'%(masterfile, org))
     masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
