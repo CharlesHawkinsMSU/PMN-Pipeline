@@ -48,7 +48,7 @@ def tsv_to_dict(file, sep = '\t'):
         try:
             infile = open(file, "r")
         except IOError as e:
-            stderr.write("%s: %s\n"(file, e.strerror))
+            stderr.write("%s: %s\n"%(file, e.strerror))
     else:
         infile = file
     d = {}
