@@ -9,7 +9,7 @@
 
 my $usage = <<USAGE;
 
-  Usage: $0 <fasta-folder> <#jobs>
+  Usage: $0 <masters-folder> <#jobs>
 USAGE
 
 use strict;
@@ -19,6 +19,7 @@ use File::Spec;
 use File::Basename;
 use File::Copy;
 use Term::ANSIColor;
+use pmn;
 
 use FindBin;
 #use lib "$FindBin::Bin/lib_perl5.16";
@@ -57,8 +58,9 @@ foreach my $fa (`ls $fafolder`) {
     my $ptools = <$in>;
     chomp $ptools;
     close $in;
-	print STDERR "umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving";
-    $pty->spawn("umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving");
+	my $patho_cmd = "umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving";
+	print STDERR $patho_cmd;
+    $pty->spawn($patho_cmd);
     open(OUT, ">$fafolder/$fa/create-$fa.log") or die $!;
     while ($pty->is_active) {
         my $o = $pty->read(1);

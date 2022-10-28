@@ -1,12 +1,18 @@
 # pmn.py
 # 
-# Charles Hawkins, 2022
+# Charles Hawkins at Rhee Lab, Department of Plant Biology, Carnegie
+# Institution for Science
+#
+# Created: 2022
+# Modified: October 2022
 #
 # This file contains various python utility functions used
 # by the other PMN pipeline python scripts
 #
 
 from sys import stdin, stdout, stderr
+import re
+
 
 if __name__ == "__main__":
     stderr.write("The pmn.py file contains utility functions used by the other PMN python scripts; it doesn't do anything when run directly. The pipeline is mostly run via the pmn-pipeline script\n")
@@ -178,3 +184,112 @@ class GFF_dict(dict):
                 continue
         self.children_added = True
 
+# Reads in a file with lines of the form var = val
+def read_var_val_file(filename):
+	file = openfile(filename)
+	d = {}
+	for line in file:
+		line = line.strip()
+		if not line or line.startswith('#'):
+			continue
+		try:
+			(key, val) = [s.strip() for s in line.split('=', 1)]
+			if key in d:
+				stderr.write(f'Warning: In file {file.name}, variable {var} is defined more than once\n')
+			d[key] = val
+		except ValueError:
+			stderr.write(f'Warning: line not recognized in {file.name}:\n{line}\n')
+	return d
+
+pf_re = re.compile('(pf)?$')
+# Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used.
+def read_pgdb_table(tables):
+	if not isinstance(tables, list):
+		tables = [tables]
+	pgdb_dict = {}
+	preset_dict = {}
+	line_n = -1
+	try:
+		for table in tables:
+			tablefile = openfile(table)
+			header = [f.strip('"') for f in tablefile.readline().rstrip().split('\t')]
+			line_n = 1
+			for line in tablefile:
+				line = [f.strip('"') for f in line.rstrip().split('\t')]
+				entry = {}  # Dict for this orgid, mapping column names to values
+
+				# Go through each column and put it into the dict for this orgid (which is the entry var)
+				for i in range(len(line)):
+					try:
+						entry[header[i]] = line[i]
+					except IndexError:
+						stderr.write(f'{tablefile.name}: Line {line_n} has more fields than the header\n')
+						exit(1)
+				# Look for any presets in the Presets column and apply
+				try:
+					presets = entry['Presets']
+					if not presets.startswith('/'):
+						stderr.write(f'{tablefile.name}, line {line_n}: Preset names should start with a "/"\n')
+						exit(1)
+					presets = presets.split('/')[1:]
+					if 'default' in preset_dict:
+						presets += ['default']
+				except KeyError:
+					presets = ['default'] if 'default' in preset_dict else []
+				for preset in presets:
+					try:
+						preset_entry = preset_dict[preset]
+					except KeyError:
+						stderr.write(f'{tablefile.name}, line {line_n}: Reference to non-existent preset "{preset}"\n')
+					for key, val in preset_entry.items():
+						entry.setdefault(key, val)
+
+				# Operations to only be performed on actual PGDBs, not on preset definitions
+				if not entry['Database ID'].startswith('/'):
+					# Fill in computed fields
+					entry.setdefault('Database Name', entry['Database ID']+'Cyc')
+					species_words = entry['Species Name'].split(' ')
+					if len(species_words) < 2:
+						stderr.write(f'{tablefile.name}, line {line_n}: Species name "{entry["Species Name"]}" should be at least two words long\n')
+						exit(1)
+
+					entry.setdefault('ID/Name', species_words[0][0]+species_words[1])
+					abbrev_name = species_words[0][0] + '. ' + species_words[1]
+					for w in species_words[2:]:
+						if not w.endswith('.'):
+							abbrev_name += ' '+w
+					entry.setdefault('Abbrev Name', abbrev_name)
+					entry.setdefault('Initial PF File', entry['Sequence File']+'.e2p2v4.orxn.pf')
+					entry.setdefault('PF File', pf_re.sub('revised.pf', entry['Initial PF File'], 1))
+					year = entry['Citation Year']
+					entry.setdefault('SAVI Citation', f'|PUB-PMNUPP{year}| |PUB-PMNAIPP{year}| |PUB-PMNRXN{year}| |PUB-PMNRXNTAXON{year}| |PUB-PMNTAXON{year}| |PUB-PMNIC{year}| |PUB-PMNSP{year}|')
+					entry.setdefault('E2P2 Citation', f'|PUB-E2P2PMN{year}|')
+					entry.setdefault('Enzrxn Citation', f'E2P2PMN{year}:EV-COMP-AINF')
+					entry.setdefault('ENZ name file', f'ec_name.map.parsed')
+					entry.setdefault('RXN Map', f'metacyc-rxn-name-mapping')
+					entry.setdefault('PWY Metacyc', f'all_pwy.meta')
+					entry.setdefault('PWY Plantcyc', f'all_pwy.plant')
+
+					# Fields below are required for all pgdb entries; if this is a pgdb entry and not a preset definition, we reference the required fields so they generate an error if absent
+					entry['Species Name']
+					entry['NCBI Taxon ID']
+					entry['Sequence File']
+					entry['Unique ID']
+					entry['Version']
+					entry['Seq Source']
+					entry['Authors']
+					entry['Curator']
+					entry['Citation Year']
+
+				# Finished building this entry, put it into the appropriate dictionary (preset_dict or pgdb_dict depending on whether it's a preset definition or an actual pgdb)
+				orgid = entry['Database ID'] 
+				if orgid.startswith('/'):
+					preset_dict[orgid[1:]] = entry
+				else:
+					pgdb_dict[orgid] = entry
+				line_n += 1
+
+	except KeyError as e:
+		stderr.write(f'{tablefile.name}: Column {e.args[0]} is required for all entries but is missing form line {line_n}\n')
+		exit(1)
+	return pgdb_dict
