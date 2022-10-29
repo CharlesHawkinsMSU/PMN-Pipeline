@@ -39,36 +39,36 @@ if (@ARGV<2) {
 }
 
 # read status file
-my ($fafolder) = map {s!/$!!; $_} @ARGV;
+my ($masters_folder) = map {s!/$!!; $_} @ARGV;
 
 my $pm = new Parallel::ForkManager($ARGV[1]);
 my @pty;
 my $c = 0;
 
-foreach my $fa (`ls $fafolder`) {
+foreach my $orgid (`ls $masters_folder`) {
     #sleep 20 if $c;
     $c ++;
     my $pty = IO::Pty::Easy->new;
     push @pty, $pty;
     $pm->start && next;
-    chomp $fa;
+    chomp $orgid;
     my $saved = 0;
-    print STDERR "[$fa] started.\n";
-    open(my $in, '<', "$fafolder/$fa/create.master") or die $!;
+    print STDERR "[$orgid] started.\n";
+    open(my $in, '<', "$masters_folder/$orgid/create.master") or die $!;
     my $ptools = <$in>;
     chomp $ptools;
     close $in;
-	my $patho_cmd = "umask 002 && $ptools -patho $fafolder/$fa/ -disable-metadata-saving";
+	my $patho_cmd = "umask 002 && $ptools -patho $masters_folder/$orgid/ -disable-metadata-saving";
 	print STDERR $patho_cmd;
     $pty->spawn($patho_cmd);
-    open(OUT, ">$fafolder/$fa/create-$fa.log") or die $!;
+    open(OUT, ">$masters_folder/$orgid/create-$orgid.log") or die $!;
     while ($pty->is_active) {
         my $o = $pty->read(1);
         print OUT $o ? $o : '';
         OUT->flush;
         OUT->sync;
         if ($o && $o =~ /Error: /i) {
-            print STDERR "[$fa] error!\n=====\n$o\n=====\n";
+            print STDERR "[$orgid] error!\n=====\n$o\n=====\n";
         }
         if ($o && $o =~ /EC\(\d+\):/) {
             if (not $saved) {
@@ -79,7 +79,7 @@ foreach my $fa (`ls $fafolder`) {
             }
         }
     }
-    print STDERR "[$fa] done.\n";
+    print STDERR "[$orgid] done.\n";
     $pty->close;
     $pm->finish;
 }
