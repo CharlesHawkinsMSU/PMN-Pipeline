@@ -4,35 +4,24 @@ from sys import stdin, stdout, stderr
 import pmn
 import argparse as ap
 import subprocess
+from os import path
 
 par = ap.ArgumentParser(description = 'Runs PathoLogic to create the PGDBs specified in the pgdb table or the --orgids argument if present')
-par.add_argument('-o', '--orgids', help = 'A comma-separated list of orgids to run. If not given, all organisms in the pgdb-table will be created', dest = 'o')
-par.add_argument('-c', '--config', default='pgdb-pipeline.txt', help = 'Config file. Will have the location of the pgdb-table if not overridden using -t', dest = 'c')
-par.add_argument('-t', '--pgdb-table', help = 'Table file of PGDBs. If not given the filename will be read from the config file', dest = 't')
+
+pmn.add_standard_pmn_args(par, 'created')
 
 args = par.parse_args()
 
-config = pmn.read_var_val_file(args.c)
-
 try:
-	if args.o:
-		org_list = args.o.split(',')
-	else:
-		if args.t:
-			tablefile = args.t
-		else:
-			tablefile = config['proj-pgdb-table']
-			print(f'Info: Got name of table file from {args.c}: {tablefile}')
-		ptable = pmn.read_pgdb_table(tablefile)
-		org_list = list(ptable.keys())
-	print(f'Info: Got list of orgids from {"command-line args" if args.o else tablefile}, will run PathoLogic on the following orgids: {", ".join(org_list)}')
+	(config, table, org_list) = pmn.read_pipeline_files(args)
 	ptools = config['ptools-exe']
 	print(f'Info: Pathway Tools executable is at {ptools}')
 	masters_folder = config['proj-masters-dir']
 	print(f'Info: Looking for PGDB master files in {masters_folder}\n')
 	for orgid in org_list:
-		log = open(f'{masters_folder}/{orgid}/create-{orgid}.log', 'w')
-		cmd = [ptools, '-patho', f'{masters_folder}/{orgid}/', '-disable-metadata-saving', '-no-web-cel-overview', '-no-cel-overview']
+		org_path = path.join(masters_folder, orgid)
+		log = open(path.join(org_path, f'create-{orgid}.log'), 'w')
+		cmd = [ptools, '-patho', org_path, '-disable-metadata-saving', '-no-web-cel-overview', '-no-cel-overview']
 		cmd_str = ' '.join(cmd)
 		print(cmd_str)
 		log.write(cmd_str + '\n')

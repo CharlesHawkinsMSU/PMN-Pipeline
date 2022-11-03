@@ -293,3 +293,30 @@ def read_pgdb_table(tables):
 		stderr.write(f'{tablefile.name}: Column {e.args[0]} is required for all entries but is missing form line {line_n}\n')
 		exit(1)
 	return pgdb_dict
+
+# Adds some standard arguments used in all pipeline scripts
+def add_standard_pmn_args(par, action = 'operated on'):
+	par.add_argument('-o', '--orgids', help = f'A comma-separated list of orgids to be {action}. If not given, all organisms in the pgdb-table will be {action}', dest = 'o')
+	par.add_argument('-c', '--config', default='pgdb-pipeline.txt', help = 'Config file. Will have the location of the pgdb-table if not overridden using -t', dest = 'c')
+	par.add_argument('-t', '--pgdb-table', help = 'Table file of PGDBs. If not given the filename will be read from the config file', dest = 't')
+
+# Read the pmn config files in the standard way and get the list of organsims to operate on. <args> should be a results of parsing args with a parser that has had add_standard_pmn_args() called on it. Returns a tuple of the config, the table, and the org list
+def read_pipeline_files(args):
+	config = read_var_val_file(args.c)
+
+	try:
+		if args.o:
+			org_list = args.o.split(',')
+		else:
+			if args.t:
+				tablefile = args.t
+			else:
+				tablefile = config['proj-pgdb-table']
+				print(f'Info: Got name of table file from {args.c}: {tablefile}')
+			ptable = pmn.read_pgdb_table(tablefile)
+			org_list = list(ptable.keys())
+		print(f'Info: Got list of orgids from {"command-line args" if args.o else tablefile}, will run the following orgids: {", ".join(org_list)}')
+	except KeyError as e:
+		stderr.write(f'{args.c}: Required variable {e.args[0]} not found')
+		exit(1)
+	return (config, ptable, org_list)
