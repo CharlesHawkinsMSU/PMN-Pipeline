@@ -3,17 +3,13 @@
 from sys import stdin, stdout, stderr
 import argparse as ap
 
-par = ap.ArgumentParser(description = 'Fixes the species.dat file so it contains the ncbi taxon id needed by savi')
-par.add_argument(help = 'The species.dat file to process. This file will be modified.', nargs='+', dest = 's')
 
-args = par.parse_args()
-
-for species_file in args.s:
+def fix_file(species_file):
 	try:
 		infile = open(species_file, 'r+')
 	except IOError as e:
 		stderr.write('%s: %s\n'%(species_file, e.strerror))
-		continue
+		return
 	lines = infile.readlines()
 	taxon = None
 	tax_line = None
@@ -26,13 +22,13 @@ for species_file in args.s:
 			break
 	if taxon is None:
 		stderr.write('Species file %s does not contain an NCBI dblink; skipping\n'%species_file)
-		continue
+		return
 	new_tax_line = 'NCBI-TAXONOMY-ID - %s\n'%taxon
 	if tax_line:
 		current_taxon = lines[tax_line].split(' ')[2].rstrip()
 		if current_taxon != 'NIL':
 			stderr.write('Species %s already has a taxon ID: %s (the one from the dblink is %s). It will not be replaced\n'%(species_file, current_taxon, taxon))
-			continue
+			return
 		lines[tax_line] = new_tax_line
 	else:
 		lines.append(new_tax_line)
@@ -40,3 +36,10 @@ for species_file in args.s:
 	infile.truncate()
 	infile.write(''.join(lines))
 	stderr.write('%s written with taxon id %s\n'%(species_file, taxon))
+
+if __name__ == '__main__':
+	par = ap.ArgumentParser(description = 'Fixes the species.dat file so it contains the ncbi taxon id needed by savi')
+	par.add_argument(help = 'The species.dat file to process. This file will be modified.', nargs='+', dest = 's')
+	args = par.parse_args()
+	for species_file in args.s:
+		fix_file(species_file)

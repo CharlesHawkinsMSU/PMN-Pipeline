@@ -22,7 +22,7 @@ use Term::ANSIColor;
 
 use FindBin;
 #use lib "$FindBin::Bin/lib_perl5.16";
-use Parallel::ForkManager;
+#use Parallel::ForkManager;
 
 $|=1;   # Output prior
 my $path = dirname(File::Spec->rel2abs(__FILE__));  # Path of this script
