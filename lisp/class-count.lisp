@@ -12,6 +12,7 @@
 	`(loop for org in ,orgids do (so org) collect ,form do (so org) (close-kb :save-updates-p NIL :flush-memory-p t)))
 
 (defconstant *main-keywords* '(do collect collecting append appending nconc nconcing into count counting sum summing maximize return maximizing minimize minimizing doing thereis always never if when unless repeat while until))
+
 (defmacro loop-orgids (orgids &rest forms)
   "Loops over the given orgids, passing remaining arguments to loop except special keywords. Special keywords are save (or saving) and close (or closing), indicating that each kb should be saved and/or closed, respectively, after we're done with it"
   (let ((save nil)

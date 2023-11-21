@@ -1,5 +1,49 @@
 ; Misc utility functions that are specific to pathway tools (for non-ptools-specific utulity functions, see utils.lisp)
 
+(defun read-flatfile (file)
+  "Reads a flat-file and returns (as its first value) a hash of hashes for all frames in the file; outer hash maps frame IDs to frame hahses, frame hash maps key to list of values. Also returns two additional values: a list of frames with no UNIQUE-ID, and a list of lines that couldn't be interpreted (i.e. they did not look like comments, blank lines, /continuations, // delimiters, or key-value pairs)"
+  (let ((dat-hash (make-hash-table))
+		(frame-hash (make-hash-table))
+		(last-key nil)
+		(nameless-frames nil)
+		(unreadable-lines nil))
+	(for-lines-in-file file
+					   do (cond ((starts-with-letter #\# line) nil)   ; Ignore comments
+								((string-equal "//" line)                 ; A // delimits frames; put the current frame into the hash table (or nameless-frames list). Dat files are also supposed to end with // so this should still work for the last frame in the file
+								 (if (setq frame-id (symbol (gethash 'unique-id frame-hash)))
+								   (puthash frame-id frame-hash dat-hash)
+								   (push frame-hash nameless-frames))
+								 (setq frame-hash (make-hash-table))
+								 (setq last-key nil))
+								((starts-with-letter #\/ line)            ; Starting with a / means continue value from previous line
+								 (puthash last-key
+										  (concatenate 'string
+													   (gethash last-key frame-hash)
+													   " "
+													   (subseq line 1))
+										  frame-hash))
+								((= 2 (length (setq kv (excl::split-re " - " line :limit 2))))  ; Standard key-value line
+								 (let ((key (symbol (first kv)))
+									   (val (second kv)))
+								   (puthash key val frame-hash)
+								   (setq last-key key)))
+								(t (push line unreadable-lines))))       ; Couldn't interpret line
+	(values dat-hash nameless-frames unreadable-lines)))
+
+(defun flatfile-has-frame (frame file)
+  "Reads the given attribute-value flatfile and determines whether it contains the given frame ID"
+  (let ((frame-id-str (symbol-name (to-handles frame))))
+	(for-lines-in-file file
+					   thereis (string-equal line (format nil "UNIQUE-ID - ~A" frame-id-str)))))
+
+(defmacro ctfp (&rest args)
+  "coercible-to-frame-p"
+  (cons 'coercible-to-frame-p args))
+
+(defun current-orgid ()
+  "As (current-kb) but returns an orgid"
+  (kb-orgid (current-kb)))
+
 (defun expand-frameset (frameset)
   "Expands the given set of frames. A frame expands to itself. A class expands to all class members. A list expands to the union of the expansions of all list members."
   (labels ((expand-frameset-set (frameset)

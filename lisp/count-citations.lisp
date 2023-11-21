@@ -1,4 +1,114 @@
 ; Functions that count things in the database or pull sets of things out from the database
+
+(defun cyc-setops (org1 org2 class) "Does set operations on the given class of frames for the two given PGDBs. Returns a list of three lists, representing frames within <class> that are unique to org1, unique to org2, and common bwtween org1 and org2"
+  (so org1)
+  (setq org1s (set-from-list (mapcar #'get-frame-handle (gcai class))))
+  (so org2)
+  (setq org2s (set-from-list (mapcar #'get-frame-handle (gcai class))))
+  (list (set-to-list (set-diff org1s org2s)) (set-to-list (set-diff org2s org1s)) (set-to-list (set-union org1s org2s))))
+(defun cyc-setops-report (org1 org2 class file) "Writes a report on the setops to the given file. It will write a list of all frames in class that are only in org1, only in org2, and common to org1 and org2, respectively, with headers"
+  (destructuring-bind (only1 only2 common) (cyc-setops org1 org2 class)
+	(to-file-or-stream
+	  file
+	  (format stream "~A only in ~A (~A):~%" class org1 (length only1))
+	  (write-list stream only1)
+	  (format stream "~A only in ~A (~A):~%" class org2 (length only2))
+	  (write-list stream only2)
+	  (format stream "~A in both ~A and ~A (~A):~%" class org1 org2 (length common))
+	  (write-list stream common))))
+	  
+
+(setq tps-ec '("4.2.3.12" "4.2.3.47" "4.2.3.88" "4.2.3.101" "4.2.3.102" "4.2.3.123"))
+(setq cyp-ec '("1.1.1.324" "1.11.2.4" "1.14.13.n7" "1.14.14.14" "1.14.14.16" "1.14.14.19" "1.14.14.23" "1.14.14.24" "1.14.14.25" "1.14.14.31" "1.14.14.32" "1.14.14.36" "1.14.14.37" "1.14.14.38" "1.14.14.39" "1.14.14.40" "1.14.14.41" "1.14.14.42" "1.14.14.43" "1.14.14.44" "1.14.14.45" "1.14.14.46" "1.14.14.48" "1.14.14.49" "1.14.14.50" "1.14.14.54" "1.14.14.55" "1.14.14.56" "1.14.14.57" "1.14.14.58" "1.14.14.59" "1.14.14.60" "1.14.14.61" "1.14.14.62" "1.14.14.63" "1.14.14.64" "1.14.14.65" "1.14.14.67" "1.14.14.68" "1.14.14.69" "1.14.14.70" "1.14.14.71" "1.14.14.73" "1.14.14.74" "1.14.14.75" "1.14.14.76" "1.14.14.77" "1.14.14.78" "1.14.14.79" "1.14.14.80" "1.14.14.82" "1.14.14.83" "1.14.14.84" "1.14.14.85" "1.14.14.88" "1.14.14.89" "1.14.14.90" "1.14.14.91" "1.14.14.92" "1.14.14.93" "1.14.14.94" "1.14.14.96" "1.14.14.97" "1.14.14.98" "1.14.14.99" "1.14.14.102" "1.14.14.103" "1.14.14.105" "1.14.14.106" "1.14.14.107" "1.14.14.109" "1.14.14.110" "1.14.14.111" "1.14.14.112" "1.14.14.113" "1.14.14.114" "1.14.14.115" "1.14.14.116" "1.14.14.120" "1.14.14.121" "1.14.14.122" "1.14.14.123" "1.14.14.126" "1.14.14.127" "1.14.14.128" "1.14.14.129" "1.14.14.130" "1.14.14.131" "1.14.14.132" "1.14.14.133" "1.14.14.134" "1.14.14.137" "1.14.14.139" "1.14.14.140" "1.14.14.145" "1.14.14.147" "1.14.14.148" "1.14.14.149" "1.14.14.150" "1.14.14.151" "1.14.14.152" "1.14.14.153" "1.14.14.154" "1.14.14.156" "1.14.14.157" "1.14.14.158" "1.14.14.159" "1.14.14.160" "1.14.14.161" "1.14.14.162" "1.14.14.163" "1.14.14.164" "1.14.14.165" "1.14.14.166" "1.14.14.167" "1.14.14.168" "1.14.14.169" "1.14.14.170" "1.14.14.171" "1.14.14.174" "1.14.14.175" "1.14.14.177" "1.14.14.178" "1.14.14.179" "1.14.14.180" "1.14.15.6" "1.14.15.8" "1.14.15.11" "1.14.15.13" "1.14.15.14" "1.14.15.16" "1.14.15.19" "1.14.15.22" "1.14.15.27" "1.14.15.29" "1.14.15.33" "1.14.15.35" "1.14.15.36" "1.14.15.39" "1.14.19.50" "1.14.19.51" "1.14.19.52" "1.14.19.53" "1.14.19.54" "1.14.19.65" "1.14.19.68" "1.14.19.69" "1.14.19.70" "1.14.19.72" "1.14.19.73" "1.14.19.74" "1.14.19.76" "1.14.19.79" "4.2.1.121" "1.7.1.14" "1.11.2.4" "1.14.14.1" "1.14.14.16" "1.14.14.19" "1.14.14.25" "1.14.14.37" "1.14.14.133" "1.14.14.138" "1.14.14.154" "1.14.14.184" "1.14.15.1" "1.14.15.4" "1.14.15.6" "1.14.15.10" "1.14.15.15"))
+
+(defun pgdb-versions-table (pgdbs file)
+  "Writes to FILE a tab-delimited table of the pgdbs in PGDBS and their current versions"
+  (print-alist file 
+			   (loop-orgids pgdbs
+							collect `(,org ,(kb-version (current-kb)))
+							closing)))
+
+(defun rand-prot ()
+  "Returns a randomly-selected protein"
+  (rand-frame (all-proteins)))
+
+(defun rand-gene ()
+  "Returns a randomly-selected gene"
+  (rand-frame (all-genes)))
+
+(defmacro prand-prot ()
+  "Prints out a randomly-selected protein"
+  `(print-frame (rand-prot)))
+
+(defun rand-frame (frameset)
+  "Returns a randomly-selected frame from the given frameset"
+  (pickrand (expand-frameset frameset)))
+
+(defun prandframe (frameset)
+  "Prints out a randomly-selected frame from the given frameset"
+  (print-frame (rand-frame frameset)))
+
+(defun pickrand (list)
+  "Returns a randomly-selected member of the given list"
+  (nth  (random (length list)) list))
+
+(defvar *ec-to-rxns* nil)
+(defun build-ec-to-rxn-table (&key force?)
+  (when (or force? (null *ec-to-rxns*))
+	(format t "Building EC to rxn table for plantcyc+metacyc~%")
+	(setf *ec-to-rxns* (make-hash-table))
+	(loop-orgids '(meta plant)
+				 do (loop for r in (all-rxns)
+						  do (loop for ec in (gsvs r 'ec-number)
+								   do (puthash ec (add-to-or-create-set (gfh r)
+																		(gethash ec *ec-to-rxns*))
+											   *ec-to-rxns*))))))
+(defun get-enzymes-for-ec (partial-ec &key (include-comp? t))
+  (loop for ec in (if (listp partial-ec) partial-ec (list partial-ec))
+		for rxns  = (get-rxns-for-ec ec)
+		with eset = (empty-set)
+		do (loop for r in rxns
+				 when (valid-frame-p r)
+				 do (loop for ezr in (gsvs r 'enzymatic-reaction)
+						  when (or include-comp? (filter-exp-ev (gsvs ezr 'citations))) 
+						  do (add-to-set (gsv ezr 'enzyme) eset)))
+		finally (return eset)))
+
+(defun missing-rxns-for-ec (partial-ec &key (kb (current-kb)) exclude-spontaneous? exclude-comp?)
+  "Given a full or partial EC number, finds all reactions that are under that EC number and have no enzyme in the specified kb. If exclude-spontaneous? is t, spontaneous reactions will not be returned. If exclude-comp? is t, computational evidence does not count as having an enzyme; only EV-EXP and EV-AS will count"
+  (so (as-orgid kb))
+  (let ((kb (as-kb kb)))
+	(loop for rxn in (get-rxns-for-ec partial-ec)
+		  when (or (not (coercible-to-frame-p rxn :kb kb))
+				   (and (not (and exclude-spontaneous? (gsv rxn 'spontaneous? :kb kb)))
+						(progn (setq ezrs (gsvs rxn 'catalyzes :kb kb))
+							   (not (if exclude-comp?
+									  (loop for ezr in ezrs
+											thereis (loop for cit in (gsvs ezr 'citations :kb kb)
+														  thereis (or (search "EV-EXP" cit)
+																	  (search "EV-AS" cit))))
+									  ezrs)))))
+		  collect rxn)))
+
+
+(defun get-rxns-for-ec (partial-ec)
+  "Given a partial EC number such as 1.2.3 or 4.2, finds all reactions that are associated with ECs that are part of that EC, so 1.2.3.4 or 4.2.2.6"
+  (loop for ec in (get-ecs-for-partial partial-ec)
+		with rxns = (empty-set)
+		do (nset-union rxns (gethash ec *ec-to-rxns*))
+		finally (return (set-to-list rxns))))
+		
+
+(defparameter *re-dot* (excl:compile-re "\\."))
+(defun get-ecs-for-partial (partial-ec)
+  "Given a partial EC number such as 1.2.3 or 4.2, finds all ECs that are part of that EC, so 1.2.3.4 or 4.2.2.6"
+  (build-ec-to-rxn-table)
+  (loop for ec being the hash-keys in *ec-to-rxns*
+		for ecn = (symbol-name ec)
+		with re = (excl:compile-re (format nil "^EC-~A(\\.|$)" (replace-re-using *re-dot* partial-ec "\\.")))
+		when (excl:match-re re ecn)
+		collect ec))
+
 (defparameter *dehydrogenase-subs* '(FAD NAD NADP |Red-NADPH-Hemoprotein-Reductases| NAD-P-OR-NOP |Acceptor| |Cytochromes-C-Oxidized| |ETR-Quinones| |Ubiquinols| |ETF-Oxidized|))
 
 (defun get-dehydrogenase-rxns ()
@@ -516,7 +626,7 @@
 
 (defun filter-exp-ev (ev-list)
   "Given a list of citation codes, pulls out those that are notated as experimental evidence"
-  (loop for ev in ev-list when (search "EXP" ev) collect ev))
+  (loop for ev in ev-list when (or (search "EV-EXP" ev) (search "EV-AS" ev)) collect ev))
 
 (defun enz-with-exp-ev ()
   "Returns a list of enzymes that have experimental evidence for themselves, their gene, or at least one enzrxn"
@@ -709,6 +819,11 @@
 (defun all-proteins () (gcai "Proteins"))
 (defun all-enzrxns () (gcai "Enzymatic-Reactions"))
 (defun all-publications () (gcai "Publications"))
+(defun all-class-rxns ()
+  (loop for r in (all-rxns)
+		when (loop for c in (append (gsvs r 'left) (gsvs r 'right))
+				   thereis (class-p c))
+		collect r))
 
 ; Quick access to specific slots
 
@@ -764,5 +879,6 @@
 	  (gsv p 'common-name)
 	  (and g (gsv g 'common-name))
 	  (symbol-name (gfh p))))
+
 
 ; (print-alist "plant-reg.txt" (loop for r in (all-regulation) do (setq src (gsv r 'regulator)) (setq dest (gsv r 'regulated-entity)) when src when dest collect (list (gfh src) (gsv r 'mode) (gfh (gsv dest 'enzyme)) (gfh (gsv dest 'reaction)) (gsv r 'mechanism) (try-gsv (gsv (gsv dest 'enzyme) 'species) 'common-name))))

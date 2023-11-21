@@ -9,3 +9,4 @@ perl_modules/Downloads
 perl_modules/lib64
 perl_modules/share
 bin/__pycache__
+bin/__pycache__/*

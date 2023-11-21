@@ -101,7 +101,8 @@ foreach my $enz (@enzs){
     $enzinfo{common_name} =~ s/<.*?>//g;
     
     # get uniport acc
-    my @DBlinks = $cyc -> get_dblinks($enz);
+	#my @DBlinks = $cyc -> get_dblinks($enz);
+    my @DBlinks = $cyc -> get_slot_values($enz, "dblinks");
     foreach my $dbl (@DBlinks) {
 	if ($dbl =~ /\((?:UNIPROT(?:-PROTEIN-ID)?|ARRAYEXPRESS|PROTEINMODELPORTAL|MODBASE|SWISSMODEL|PRIDE|SMR) "(.*)"\s*\)$/ || $dbl =~ /\((?:UNIPROT(?:-PROTEIN-ID)?|ARRAYEXPRESS|PROTEINMODELPORTAL|MODBASE|SWISSMODEL|PRIDE|SMR) "(.*)" NIL/) {
             my $acc = $1;

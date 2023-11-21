@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/perl -w
 use strict;
 #use lib '/home/bxue/Downloads/perlcyc_1.2';
 use perlcyc;

@@ -34,7 +34,7 @@
 				   and do (loop-finish)
 				   collect (subseq string start (first span))
 				   do (setq start (rest span))
-				   do (setq rep (funcall fn match))
+				   do (setq rep (if (functionp fn) (funcall fn match) fn))
 				   when (stringp rep)
 				   collect rep
 				   else collect match))))
@@ -57,11 +57,17 @@
 
 (defun starts-with-letter (letter string)
   "Returns t if string starts with the character #\letter"
-  (eq letter (char string 0)))
+  (and (< 0 (length string)) (eq letter (char string 0))))
 
 (defun symbol (name)
   "Finds the existing symbol called \"name\", or creates it if it does not exist. Case-sensitive."
   (if (symbolp name) name (or (find-symbol name) (make-symbol name))))
+
+(defun drop-last-n (n list)
+  "Drops the last n entries from the given list"
+  (loop for el in list
+		for el2 in (nthcdr n list)
+		collect el))
 
 (defun first-n (n list)
   "Returns the first n elements of list (without needing to go through the whole list first)"
@@ -109,6 +115,10 @@
   "Print working directory"
   (format t "~A~%" *default-pathname-defaults*))
 
+(defun dir-p (file)
+  "Returns file if file exists and is a directory, otherwise NIL"
+  (probe-file (concatenate 'string (namestring file) "/.")))
+
 (defun first? (what)
   "Returns what if it is an atom, or its first element if it is a list"
   (if (listp what)
@@ -139,18 +149,12 @@
 	(with-open-file (fd stream :direction :output :if-exists :supersede)
 	  (loop for elt in list do (format fd "~A~%" elt)))))
 
+(defmacro for-lines-in-file (file &rest cmds)
+  (list 'from-file-or-stream file (append `(loop for line = (read-line stream nil 'eof) while (stringp line)) cmds)))
+
 (defun read-list (from)
   "Reads a list of strings, one per line, from either a stream or a file"
-  (if (streamp from) (read-list-stream from) (read-list-file from)))
-
-(defun read-list-stream (stream)
-  "Reads a list of strings, one per line, from stream"
-  (loop while (stringp (setq line (read-line stream NIL 'eof))) collect line))
-
-(defun read-list-file (file)
-  "Reads a list of strings, one per line, from the named file"
-  (with-open-file (stream file :direction :input)
-    (read-list-stream stream)))
+  (for-lines-in-file from collect line))
 
 (defmacro puthash (key val hash)
   "Puts key -> val into hash"
@@ -220,15 +224,8 @@
         fn-counts))))
 
 (defun read-alist (file &key nil-value (sep "\\t") (limit 0)) 
-  (flet ((read-alist-stream (stream)
-             (loop for line = (read-line stream nil)
-				   while line
-				   collect (loop for field in (excl::split-re sep line :limit limit)
-
-								 collect (if (equal field nil-value) nil field)))))
-    (if (streamp file) 
-        (read-alist-stream file)
-        (with-open-file (stream file :direction :input) (read-alist-stream stream)))))
+  (for-lines-in-file file collect (loop for field in (excl::split-re sep line :limit limit)
+										collect (if (equal field nil-value) nil field))))
 (defun assoc-every (item alist)
   "Works like assoc but returns all matching items from alist"
   (loop for element in alist when (eq (first element) item) collect element))
@@ -352,6 +349,11 @@
 (defmacro add-to-set (member set)
   "Add member to set"
   `(puthash ,member ,t ,set))
+
+(defun add-to-or-create-set (member set)
+  (if set
+	(progn (puthash member t set) set)
+	(set-from-list `(,member))))
 
 (defun add-list-to-set (list set)
   "Add all items in list to set"

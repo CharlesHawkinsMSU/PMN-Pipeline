@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
-from sys import stdin, stdout, stderr
+from sys import stdin, stdout, stderr, version_info
 import argparse as ap
 import pmn
 from os import path
+import os
 import shutil
 import subprocess
+
+if version_info.major < 3 or version_info.minor < 8:
+    stderr.write(f'This script requires Python 3.8 or later to run (currently running Python {version_info.major}.{version_info.minor}.{version_info.micro})\n')
+    exit(1)
 
 par = ap.ArgumentParser(description = 'Prepare the master files for running refine-a, b, and c')
 
@@ -14,16 +19,17 @@ pmn.add_standard_pmn_args(par, 'prepared')
 args = par.parse_args()
 
 (config, table, org_list) = pmn.read_pipeline_files(args)
+pmn.verbose = args.v
 try:
 	ptools = config['ptools-exe']
-	print(f'Info: Pathway Tools executable is at {ptools}')
+	pmn.info(f'Pathway Tools executable is at {ptools}')
 	masters_folder = config['proj-masters-dir']
-	print(f'Info: Looking for PGDB master files in {masters_folder}\n')
+	pmn.info(f'Looking for PGDB master files in {masters_folder}\n')
 
 	# Iterate over the species
 	for orgid in org_list:
 		org_path = path.join(masters_folder, orgid)
-		print(f'Info: Preparing {orgid}')
+		pmn.info(f'Preparing {orgid}')
 		org_entry = table[orgid]
 
 		# write overview.master foreach species
@@ -90,12 +96,14 @@ fs_new_enzrxns	s_pgdb-s_start_timestamp-s_end_timestamp-new-enzrxns
 #
 # delete invalid pathways
 lisp	(so 's_pgdb)	select organism
-lisp	(loop for p in '(fs_pwy_del) do (delete-frame-and-dependents p))
+lisp	(loop for p in '(fs_pwy_del) do (if (coercible-to-frame-p p) (delete-frame-and-dependents p) (format T "Warning: Frame ~A is in the list of frames to be deleted from ~ACYC but was not found in ~ACYC~%" p 's_pgdb 's_pgdb)))
 
 # import pathways from metacyc inferred by curator (this function does not import enzymes with the pathway)
 lisp	(so 'meta)
+lisp	(so 'plant)
 lisp	(so 's_pgdb)
-lisp	(import-pathways '(fs_pwy_add) (find-kb 'metabase) (current-kb))
+lisp	(loop for pwy in '(fs_pwy_add) do (if (coercible-to-frame-p pwy :kb (find-org 'meta)) (import-pathways (list pwy) (find-org 'meta) (current-kb)) (if (coercible-to-frame-p pwy :kb (find-org 'plant)) (import-pathways (list pwy) (find-org 'plant) (current-kb)) (format t "Warning: Pathway ~A not found in MetaCyc or PlantCyc, will not be imported into ~ACYC~%" pwy 's_pgdb))))
+#lisp	(import-pathways '(fs_pwy_add) (find-kb 'metabase) (current-kb))
 
 # add curator |pmngroup| to PGDB
 lisp	(so 'ara)
@@ -149,27 +157,33 @@ lisp	(so 's_pgdb)
 # save the kb
 lisp	(save-kb)
 '''
+		pmn.info(f'Writing refine-a.master for {orgid}')
 		refine_a = open(path.join(org_path, 'refine-a.master'), 'w')
 		refine_a.write(refine_a_text)
 		refine_a.close()
 
 		# Copy SAVI output and common directories into the org's master directory
-		shutil.copytree(path.join(config['proj-savi-dir'], 'output', orgid), path.join(org_path, orgid))
-		shutil.copytree(config['savi-common-dir'], path.join(org_path, 'common'))
+		pmn.info(f'Copying SAVI output for {orgid}')
+		shutil.copytree(path.join(config['proj-savi-dir'], 'output', orgid), path.join(org_path, orgid), dirs_exist_ok = True)
+		pmn.info(f'Copying SAVI common files to {orgid}')
+		shutil.copytree(config['savi-common-dir'], path.join(org_path, 'common'), dirs_exist_ok = True)
 
 		# Fix newlines. Subsequent scripts expect files with unix newlines and the .txt extension stripped off
+		pmn.info(f'Fixing newlines for {orgid}')
 		for file in os.listdir(path.join(org_path, orgid)):
+			file = path.join(org_path, orgid, file)
 			newfilename = file.replace('.txt', '')
 			file_handle = open(file)
-			file_contents = file_handle.read
+			file_contents = file_handle.read()
 			file_handle.close()
 			newfile_handle = open(newfilename, 'w')
 			newfile_handle.write(file_contents)
 			newfile_handle.close()
 
 		# Write blastset.master
+		pmn.info(f'Writing blastset.master for {orgid}')
 		blastset = open(path.join(org_path, 'blastset.master'), 'w')
-		blastset.write('s_ptools\t{ptools}\ns_script_folder\tperl_scripts\nperl\ts_script_folder/create-blast-dataset-pgdb.pl $s "{org_entry["Version"]}" "{org_entry["Species Name"]}" "{org_entry["Seq Source"]}" {path.join(config["proj-fasta-dir"], org_entry["Sequence File"])} {config["proj-blastsets-dir"]}\n')
+		blastset.write(f's_ptools\t{ptools}\ns_script_folder\tperl_scripts\nperl\ts_script_folder/create-blast-dataset-pgdb.pl {orgid} "{org_entry["Version"]}" "{org_entry["Species Name"]}" "{org_entry["Seq Source"]}" {path.join(config["proj-fasta-dir"], org_entry["Sequence File"])} {config["proj-blastsets-dir"]}\n')
 		blastset.close()
 
 except KeyError as e:

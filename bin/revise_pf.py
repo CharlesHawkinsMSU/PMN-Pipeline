@@ -237,7 +237,7 @@ def process_pf(pfname, rpfname, prot2gene, gene2id = {}, prot2id = {}, numeric_p
                 rpffile.write(line + '\n')
     return gene2id, prot2id
             
-def main():
+def get_pf_args():
     par = ap.ArgumentParser(description = '')
     par.add_argument('i', help = 'Input .pf file')
     par.add_argument('-ig', '--input-gff', metavar = 'gff', help = 'Input gff file we want to get gene-protein mappings from', dest = 'f')
@@ -255,11 +255,17 @@ def main():
     par.add_argument('-n', '--numeric-ids', action = 'store_true', help = 'Auto-generate numeric gene and protein frame IDs instead of using the accessions as frame IDs. The gene IDs will start with whatever is given with -gp, followed by a number; the numbers are assigned based on the order that proteins derived from each gene appears in the input pf file. Protein IDs are the gene ID followed by "-MONOMER-" followed by a transcript number. The transcript numbers start from 1 and follow the order in which proteins derived from the same gene appear in the input .pf file. Useful if the accessions for this organism are not valid as frame IDs (meaning they are either too long or contain disallowed characters like #). If there are IDs in the input mapping file (and -d is not specified), then only proteins in the input .pf file that don\'t have mappings in that file are assigned new numeric IDs. If a new numeric ID would conflict with one from the mapping file for another gene or protein, then the new ID is incremented (gene ID for genes, transcript ID for proteins) until a "free" one is found.', dest = 'n')
     par.add_argument('-ngp', '--gene-prefix', default = 'G-', help = 'Prefix for the generated gene IDs', dest = 'gp')
     par.add_argument('-d', '--discard-map-ids', action = 'store_true', help = 'If the input mapping file contains gene and protein IDs, discard them and go with either the accessions or, if -n is specified, newly-assigned numeric IDs', dest = 'd')
+    par.add_argument('-gr', '--gene-delete', help='Optional regex used to remove unwanted elements from the gene ID as it appears in its field. Any text matching the regex will be removed. So for example if the gene ID is given as g12345:102938:12038:chr3 where only the first part is what you want, you can give -gr \':.*\' to remove the unwanted chromosome coordinates. Applies to gene IDs read from fasta and gff, but not to input mapping files', dest='gd')
 
     args = par.parse_args()
     if not (args.f or args.ifa or args.im):
         stderr.write('Must specify at least one of: -ig, -if, -im\n')
         exit(1)
+    return args
+
+def main(args = None):
+    if not args:
+        args = get_pf_args()
     prot2gene = {}
     gene2id_from_map = {}
     prot2id_from_map = {}
@@ -269,6 +275,10 @@ def main():
         prot2gene = parse_gff(args.f, args.pf, args.p, args.k, args.g)
     if args.ifa:
         prot2gene.update(parse_fasta(args.ifa, args.fg, args.fs, args.fkv))
+    if args.gd:
+        gd_re = re.compile(args.gd)
+        for prot, gene in prot2gene.items():
+            prot2gene[prot] = gd_re.sub('', gene)
     if args.im:
         prot2gene_from_map, gene2id_from_map, prot2id_from_map = parse_input_map(args.im)
         prot2gene.update(prot2gene_from_map)

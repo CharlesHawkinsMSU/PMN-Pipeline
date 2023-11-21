@@ -336,3 +336,33 @@
 	(when (find side '(:right :both))
 	  (loop for val in (get-slot-values rxn 'right :kb kb)
 			do (replace-value-annot rxn 'right val 'compartment from-cmp to-cmp :kb kb)))))
+
+; Functions to find the origin of a frame by looking at the flatfiles in previous versions of the pgdb. All previous versions should be put into the pgdb folder (the will not be loaded or upgraded). They will need to have their flatfiles dumped, however.
+
+(defun versions-with-enzrxn (ezr dir)
+  (let* ((vers-list (sort (get-org-versions :dir (probe-file (format nil "~A/" dir))) #'compare-versions)))
+	(loop for v in vers-list
+		  for ezrfn = (make-pathname :directory `(:absolute ,dir ,v "data") :name  "enzrxns.dat")
+		  for ezrfile = (probe-file ezrfn)
+		  ;do (format t "~A~%~A~%" ezrfn ezrfile)
+		  collect (list v (if ezrfile (flatfile-has-frame ezr ezrfile) 'nf)))))
+
+(defun sorted-versions-of-pgdb (&optional (org (current-orgid)))
+  (sort (get-org-versions org) #'compare-versions))
+
+(defun get-org-versions (&key (org (current-orgid))(dir (make-pathname :directory (drop-last-n 1 (pathname-directory (full-org-system-directory org))))))
+  (mapcar #'file-namestring
+		  (remove-if-not
+			#'dir-p (directory (format nil "~A/" dir)))))
+
+(defun compare-versions (v1 v2)
+  "Returns t iff v1 is an earlier version than v2, assuming they are of the form 1.2.3; so 1.9.3 is an earlier version than 1.12.1. Returns NIL if the versions are the same or v2 is the earlier version. If one version has fewer segments than the other than the missing segments are treated as 0; so 3.2 is an earlier version than 3.2.1, but 3.2 and 3.2.0 are the same version. Versions that do not consist of strings of digits separated by dots will generate an error"
+  (let ((v1s (loop for s in (excl::split-re "\\." v1) collect (parse-integer s)))
+		(v2s (loop for s in (excl::split-re "\\." v2) collect (parse-integer s))))
+	(when (< (setq l1 (length v1s)) (setq l2 (length v2s)))
+	  (nconc v1s (make-list (- l2 l1) :initial-element 0)))  ; pad out v1 to the length of v2, if needed
+	(loop for n1 in v1s for n2 in v2s
+		  when (< n1 n2) do (return t)
+		  when (> n1 n2) do (return nil))))
+
+

@@ -9,6 +9,25 @@
 (defparameter atted '(Ara Tomato Soy Oryza Corn Brapa_fpsc Grape Poplar Mtruncatula) "A list of species that are in the ATTED-II co-espression database")
 (defparameter authors-pmn14 '(|xue| |schlapfer| |rhee| |zhang| |xu| |hawkins| |fryer|) "List of authors in PMN14")
 
+; Functions for updating drupal info
+(defun export-drupal-table (pgdbs file)
+  "Writes a table file with the PGDB IDs, species names, versions, and counts of pathways, reactions, enzymes, compounds, and citations"
+  (to-file-or-stream file
+					 (print-alist
+					   stream
+					   (cons '("Cyc" "TaxName" "Version" "Pathways" "Enzymes" "Reactions" "Compounds" "Citations")
+							 (loop-orgids pgdbs
+							   collect (list
+										 org
+										 (org-name)
+										 (kb-version (find-kb org))
+										 (length (gcai '|Pathways|))
+										 (length (gcai '|Proteins|))
+										 (length (gcai '|Reactions|))
+										 (length (gcai '|Compounds|))
+										 (length (gcai '|Publications|)))
+							   closing)))))
+
 ; refine-a functions
 (defun copy-authors-from-aracyc (authors pgdbs)
   "Copies the author frames from aracyc to the other pgdbs"
@@ -32,12 +51,40 @@
 	(when (find 'ara pgdbs)
 	  (so 'ara)
 	  (put-slot-values 'ara 'pgdb-authors authors))))
-
+; Functions to add in dblinks
+(defun add-dblink (db author &key (to (all-proteins)) filter (slot 'accession-1) modify)
+  "Adds the given dblink to all proteins. DB should be the frame ID of a database object, e.g. 'PHYTOZOME. AUTHOR should be the author to credit, e.g. '|hawkins|. FILTER is a string; only proteins whose accession contains the string will receive the dblink. SLOT is the slot to take the accession from; goes into the dblink and also is used by FILTER. Proteins lacking this slot will not get the dblink"
+  (loop for p in (expand-frameset to)
+		for a = (gsv p slot)
+		when modify
+		do (setq a (funcall modify a))
+		when a
+		when (search filter a)
+		do (add-slot-value p 'dblinks `(,db ,a nil ,author ,(get-universal-time) nil))
+		count p))
+				 
 ; Functions to generate the citations for SAVI (PUB-PMNUPP2019, etc.)
 
 (defconstant *pmn-citations* '("PMNUPP" "PMNAIPP" "PMNRXN" "PMNRXNTAXON" "PMNTAXON" "PMNIC" "PMNSP" "E2P2PMN" "PMNCVP") "List of partial frame names for the savi citations, used when copying the citations from one PGDB to the others")
-
-(defun create-savi-citations (&key (year (util.date-time:date-time-year (util.date-time:ut-to-date-time (get-universal-time)))) (input-dir (sys:getenv "savi")) e2p2-version (ptools-version (ptools-version)) savi-version (rpsd-version e2p2-version) metacyc-version (kb-list (list (current-kb))))
+(defun copy-savi-citations (&key (year (util.date-time:date-time-year (util.date-time:ut-to-date-time (get-universal-time)))) (src-kb 'ara))
+  "Copies all the SAVI citations for :year (by default the current year) from :src-kb (by default AraCyc) to the current kb"
+  (let ((src-kb (as-kb src-kb))
+		(dst-kb (current-kb)))
+	(so (as-orgid src-kb))
+	(so (as-orgid dst-kb))
+	(import-frames :frames
+				   (loop for cit-base in *pmn-citations*
+						 collect (symbol (format nil "PUB-~A~A" cit-base year)))
+				   :src-kb src-kb :dst-kb dst-kb)))
+(defun create-savi-citations (&key
+							   (year (util.date-time:date-time-year (util.date-time:ut-to-date-time (get-universal-time))))
+							   (input-dir (sys:getenv "PMN_SAVI"))
+							   e2p2-version
+							   (ptools-version (ptools-version))
+							   savi-version
+							   (rpsd-version e2p2-version)
+							   metacyc-version
+							   (kb-list (list (current-kb))))
   "Creates the SAVI citations for the given year. The input-dir should point to the SAVI input directory containing CAPP.txt, etc."
   (let* ((org-list (mapcar #'as-orgid kb-list))
 		 (src-org (first org-list))
@@ -124,7 +171,8 @@
 
 (defun read-savifile-version (dir whichfile)
   "Reads the version string from the specified savi file in the savi input directory"
-  (let ((filename (make-pathname :directory dir :name whichfile)))
+  (let ((filename (make-pathname :directory (list :absolute dir "current" "input") :name whichfile)))
+	(format t "Reading from ~A (from ~A, ~A)~%" filename dir whichfile)
 	(with-open-file (file filename :direction :input)
 	  (let ((firstline (read-line file nil nil)))
 		(unless firstline (error (format nil "File ~A is empty~%" filename)))
@@ -228,3 +276,33 @@
   (loop for p in (get-class-all-instances "Polypeptides")
 		when (equal (get-slot-value p 'common-name) "NIL")
 		do (put-slot-values p 'common-name nil)))
+
+; Functions for the custom data dumps
+(defun pmn-dump-compounds (file)
+  "Does the custom PMN compound dump for one orgid"
+  (to-file-or-stream
+	file
+	(format stream  "Compound_id	Compound_common_name	Compound_synonyms	Molecular_weight	Chemical_formula	Smiles	Links	EC	Reaction_equation	Pathway~%")
+	(loop for c in (frames-referenced-as-cpds) do (pmn-dump-compound c stream))))
+
+(defun pmn-dump-compound (c stream)
+  "Returns a line for compound c for use in (pmn-dump-compounds)"
+  (loop for r in (reactions-of-compound c)
+		do (loop for p in (gsvs r 'in-pathway)
+				 do (format stream "~S	~A	~{~A~^*~}	~A	~{~{~A~}~^ ~}	~A	~{~{~A~^:~}~^*~}	~A	~A	~A~%"
+							(get-frame-handle c)
+							(get-name-string c :strip-html? t)
+							(gsvs c 'synonyms)
+							(or (gsv c 'molecular-weight) "")
+							(gsvs c 'chemical-formula)
+							(or (gsv c 'smiles) "")
+							(loop for l in (gsvs c 'dblinks) collect (subseq l 0 2))
+							(or (gsv r 'ec-number) (format nil "~S" (gfh r)))
+							(get-name-string r :strip-html? t)
+							(get-name-string p :strip-html? t)))))
+(defun frames-referenced-as-cpds ()
+  "Returns a list of all frames referenced as if they were compounds in at least one pathway"
+  (loop for p in (gcai '|Pathways|)
+		with s = (empty-set)
+		do (add-list-to-set (compounds-of-pathway p) s)
+		finally (return (set-to-list s))))

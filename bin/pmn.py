@@ -11,7 +11,10 @@
 #
 
 from sys import stdin, stdout, stderr
+import os
+import stat
 import re
+import socket
 
 
 if __name__ == "__main__":
@@ -85,11 +88,15 @@ def invert_dict(d):
     return di
 
 # Inverts a dictlist (dictionary with lists as values) so that all elements of <d>'s values become keys pointing to a list of all the keys whose values in <d> contained that key. So for example invert_dictlist({'rose':['red','white'], 'buttercup':['yellow'], 'daffodil':['yellow','white']}) returns {'red':['rose'], 'white':['rose','daffodil'], 'yellow':['buttercup', 'daffodil']}
+# Also works with scalar values in the input dict, but still returns a dictlist as output; {'a': 'b', 'c': 'd', 'e': 'b', 'f': ['g', 'b']} returns {'b': ['a', 'e', 'f'], 'd': ['c'], 'g': ['f']}
 def invert_dictlist(d):
     di = {}
     for key, vals in d.items():
-        for val in vals:
-            add_to_dictlist(di, val, key)
+        if isinstance(vals, list):
+            for val in vals:
+                add_to_dictlist(di, val, key)
+        else:
+            add_to_dictlist(di, vals, key)
     return di
 
 def parse_fasta_header(line, sep = ' ', kv_sep = '='):
@@ -314,19 +321,101 @@ def read_pipeline_files(args):
 
 	verbose = args.v
 	try:
+		if args.t:
+			config['pgdb-table'] = args.t
+			tablefile = args.t
+		else:
+			tablefile = config['proj-pgdb-table']
+			info(f'Got name of table file from {args.c}: {tablefile}')
+		ptable = read_pgdb_table(tablefile)
 		if args.o:
 			org_list = args.o.split(',')
 		else:
-			if args.t:
-				config['pgdb-table'] = args.t
-				tablefile = args.t
-			else:
-				tablefile = config['proj-pgdb-table']
-				info(f'Got name of table file from {args.c}: {tablefile}')
-			ptable = read_pgdb_table(tablefile)
 			org_list = list(ptable.keys())
 		info(f'Got list of orgids from {"command-line args" if args.o else tablefile}, will run the following orgids: {", ".join(org_list)}')
 	except KeyError as e:
 		stderr.write(f'{args.c}: Required variable {e.args[0]} not found')
 		exit(1)
 	return (config, ptable, org_list)
+
+def counter_from_id(uid):
+    counter = 0
+    for i in range(len(uid)):
+        c = uid[-(i+1)]
+        if c >= '0' and c <= '9':
+            v = ord(c) - ord('0')
+        elif c >= 'A' and c <= 'Z':
+            v = ord(c) - ord('A') + 10
+        else:
+            raise ValueError(c)
+        counter += 36**i*v
+    return counter
+
+# Checks that all given files exist and are of the correct type. The progam will crash with an error if any don't exist or are the wrong kind of file
+def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
+    for af in files+dirs+sockets:
+        if not os.path.exists(af):
+            stderr.write(f'{af}, required by {progname}, does not exist\n')
+            exit(1)
+    for f in files:
+        if not os.path.isfile(f):
+            stderr.write(f'File {f}, required by {progname}, exists but is not a standard file or a symlink to a standard file\n')
+            exit(1)
+    for d in dirs:
+        if not os.path.isdir(d):
+            stderr.write(f'Directory {d}, required by {progname}, exists but is not a directory\n')
+            exit(1)
+    for s in dirs:
+        if not stat.S_ISSOCK(os.stat(s).st_mode):
+            stderr.write(f'Socket {s}, required by {progname}, exists but is not a socket\n')
+            exit(1)
+
+def socket_msg(cmd, socket_path):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(socket_path)
+    s.sendall(cmd.encode())
+    r = s.recv(1024)
+    s.close()
+    return r.decode().rstrip()
+
+# Send a lisp command via the API. Pathway Tools should have been started with the -api flag. Commands are automatically wrapped in an error handler unless handle_errs is set to False. If crash is true, the program will crash (exit(1)) on an error; otherwise it will return None
+def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True, crash = True):
+    if not os.path.exists(socket_path):
+        stderr.write(f'Pathway tools socket {socket_path} does not exits. Did you remeember to start Pathway Tools with -api?\n')
+        if crash:
+            exit(1)
+        else:
+            raise FileNotFoundError(socket_path)
+    if not stat.S_ISSOCK(os.stat(socket_path).st_mode):
+        stderr.write(f'Pathawy tools socket {socket_path} exists but is not a socket\n')
+        if crash:
+            exit(1)
+    if handle_errs:
+        socket_msg('(setq *error* nil)', socket_path)
+        cmd_he = f'(handler-case {cmd} (error (e) (setq *error* `(,(type-of e) ,(format nil "~A" e)))))'
+        info(f'{cmd_he}\n')
+        r = socket_msg(cmd_he, socket_path)
+        e = socket_msg('*error*\n', socket_path)
+        if e != 'NIL':
+            stderr.write(f'{e}\n')
+            if crash:
+                exit(1)
+            else:
+                return None
+        else:
+            return r
+    else:
+        return socket_msg(cmd, socket_path)
+
+# Switch organisms in the ptools instance. This function should be used instead of the lisp function "so" because (so 'org) uses (break) when the orgid was not found rather than raise a catchable condition, freezing up the api and preventing recovery
+def ptools_so(orgid, socket_path = '/tmp/ptools-socket', crash = True):
+    found_org = send_ptools_cmd(f"(setq org (find-org '{orgid}))", socket_path = socket_path, crash = crash)
+    if found_org == "NIL":
+        stderr.write(f"Organism {orgid} was not found by the Pathway Tools instance connected to {socket_path}\n")
+        if crash:
+            exit(1)
+        else: 
+            return None
+    else:
+        return send_ptools_cmd('(select-organism :org org)', socket_path = socket_path, crash = crash)
+

@@ -18,23 +18,47 @@ else
 fi
 
 cd $mod_dir
-if ! perl Makefile.PL PREFIX=$PMN_PERL_MODS; then
-	echo "$mod_dir failed to configure"
-	exit 1
-fi
+if [[ -a Build.PL ]]; then
+	if ! perl Build.PL --prefix $PMN_PERL_MODS; then
+		echo "$mod_dir failed configure via Build.PL"
+		exit 1
+	fi
+	if [[ ! -a Build ]]; then
+		echo "$mod_dir Build.PL did not make a Build script. I don't know how to install this perl module"
+		exit 1
+	fi
+	if ! ./Build; then
+		echo "$mod_dir Build script failed"
+		exit 1
+	fi
+	if ! ./Build test; then
+		echo "$mod_dir failed post-build test(s)"
+		exit 1
+	fi
+	if ! ./Build install; then
+		echo "$mod_dir failed installation"
+		exit 1
+	fi
+	echo "$mod_dir installed successfully"
+elif [[ -a Makefile.PL ]]; then
+	if ! perl Makefile.PL PREFIX=$PMN_PERL_MODS; then
+		echo "$mod_dir failed configure via Makefile.PL"
+		exit 1
+	fi
 
-if ! make; then
-	echo "$mod_dir failed to build"
-	exit 1
-fi
+	if ! make; then
+		echo "$mod_dir failed to build"
+		exit 1
+	fi
 
-if ! make test; then
-	echo "$mod_dir failed post-build tests"
-	exit 1
-fi
+	if ! make test; then
+		echo "$mod_dir failed post-build tests"
+		exit 1
+	fi
 
-if ! make install; then
-	echo "$mod_dir failed install"
-	exit 1
+	if ! make install; then
+		echo "$mod_dir failed install"
+		exit 1
+	fi
+	echo "$mod_dir installed successfully"
 fi
-echo "$mod_dir installed successfully"
