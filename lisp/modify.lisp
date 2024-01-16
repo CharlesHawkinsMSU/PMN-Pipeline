@@ -366,3 +366,92 @@
 		  when (> n1 n2) do (return nil))))
 
 
+
+(require :sax)
+(defstruct pubchem-state (id "") (cur-attr nil) (look-for :none) (inchi nil) (inchi-key nil) (smiles nil))
+(defstruct pubchem-attr (name "") (label "") (value ""))
+
+(defun print-pubchem-cpd (state)
+  (format t "ID: ~A~%" (pubchem-state-id state)))
+
+(defclass pubchem-xml-parser (net.xml.sax:sax-parser)
+  ((state :initform (make-pubchem-state) :reader state)
+   (recs :initform (make-hash-table) :reader recs)))
+
+(defmethod make-pc-recs ((parser pubchem-xml-parser))
+  "Makes recommendations for the current pubchem record, finding compounds that match it for InChI or SMILES and putting those into the recs field of the class. Should be called when the end of a pubchem record is reached"
+  (let* ((state (state parser))
+		 (id (pubchem-state-id state))
+		 (inchi (pubchem-state-inchi state))
+		 (inchi-key (pubchem-state-inchi-key state))
+		 (smiles (pubchem-state-smiles state))
+		 (rec '(nil nil nil)))
+	(when inchi
+	  (multiple-value-bind (cpd status) (get-cpd-id-by-inchi inchi)
+		(when cpd
+		  (setf (first rec) cpd))))
+	(when inchi-key
+	  (multiple-value-bind (cpd status) (get-cpd-id-by-inchi inchi)
+		(when cpd
+		  (setf (second rec) cpd))))
+	(when smiles
+	  (multiple-value-bind (cpd status) (get-cpd-id-by-inchi inchi)
+		(when cpd
+		  (setf (third rec) cpd))))
+	(when (or (first rec) (second rec) (third rec) (fourth rec))
+	  (puthash id rec (recs parser)))))
+
+(defmethod net.xml.sax:start-document ((parser pubchem-xml-parser))
+  (format t "Beginning parse of PubChem XML~%"))
+
+(defmethod net.xml.sax:end-document ((parser pubchem-xml-parser))
+  (format t  "Finished parsing PubChem XML~%")
+  (recs parser)
+  )
+
+(defmethod net.xml.sax:start-element ((parser pubchem-xml-parser) iri localname qname attrs)
+  (declare (ignore iri qname attrs))
+  (let ((state (state parser)))
+	(cond ((string-equal localname "PC-Compound")
+		   (setf (pubchem-state-id state) "")
+		   (setf (pubchem-state-cur-attr state) nil)
+		   (setf (pubchem-state-look-for state) nil))
+		  ((string-equal localname "PC-CompoundType_id_cid")
+		   (setf (pubchem-state-look-for state) :id))
+		  ((string-equal localname "PC-InfoData")
+		   (setf (pubchem-state-cur-attr state) (make-pubchem-attr)))
+		  ((string-equal localname "PC-Urn_label")
+		   (setf (pubchem-state-look-for state) :label))
+		  ((string-equal localname "PC-Urn_name")
+		   (setf (pubchem-state-look-for state) :name))
+		  ((string-equal localname "PC-InfoData_value_sval")
+		   (setf (pubchem-state-look-for state) :value))))
+  nil)
+
+(defmethod net.xml.sax:end-element ((parser pubchem-xml-parser) iri localname qname)
+  (declare (ignore iri qname attrs))
+  (let ((state (state parser)))
+	(cond ((string-equal localname "PC-Compound")
+		   (print-pubchem-cpd state))
+		  ((string-equal localname "PC-InfoData")
+		   (make-pc-recs parser)
+		   (setf (pubchem-state-cur-attr state) (make-pubchem-attr))))
+	(setf (pubchem-state-look-for state) :none))
+  nil)
+
+(defmethod net.xml.sax:content ((parser pubchem-xml-parser) content start end ignorable)
+  (let* ((state (state parser))
+		 (sattr (pubchem-state-cur-attr state))
+		 (look-for (pubchem-state-look-for state))
+		 (content (subseq content start end))
+		 )
+	(cond ((eq look-for :none))
+		  ((eq look-for :id)
+		   (setf (pubchem-state-id state) (concatenate 'string (pubchem-state-id state) content)))
+		  ((eq look-for :label)
+		   (setf (pubchem-attr-label sattr) (concatenate 'string (pubchem-attr-label sattr) content)))
+		  ((eq look-for :name)
+		   (setf (pubchem-attr-name sattr) (concatenate 'string (pubchem-attr-name sattr) content)))
+		  ((eq look-for :value)
+		   (setf (pubchem-attr-value sattr) (concatenate 'string (pubchem-attr-value sattr) content)))))
+  nil)

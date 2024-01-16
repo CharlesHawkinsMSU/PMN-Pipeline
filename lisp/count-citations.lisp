@@ -1,11 +1,40 @@
 ; Functions that count things in the database or pull sets of things out from the database
+(defun orgids-have-frame-table (orgids frames)
+  "For the given list of orgids and of frames, makes a table of which PGDBs have each frame"
+  (let ((frames (to-handles frames))
+		(orgids (mapcar #'as-orgid orgids))
+		(kbs (mapcar #'as-kb orgids)))
+	(loop for orgid in orgids do (so orgid))
+	(cons (cons "" orgids)
+		  (loop for frame in frames
+				collect (cons frame
+							  (loop for kb in kbs collect (yn (coercible-to-frame-p frame :kb kb))))))))
+
+		  
+(defun make-dblink-table (class)
+  "Creates a table of dblinks for the given class. Rows are instances of the class, columns are external databases"
+  (let ((dbs (set-to-list (loop for frame in (gcai class)
+								with db-set = (empty-set)
+								do (loop for (db . rest) in (gsvs frame 'dblinks)
+										 do (add-to-set db db-set))
+								finally (return db-set)))))
+	(append (list (append (list (gfh class)) dbs))
+			(loop for frame in (gcai class)
+				  for dbl = (gsvs frame 'dblinks)
+				  collect (append (list (gfh frame))
+								  (loop for db in dbs
+										for entries = (assoc-every db dbl)
+										collect (format nil "~{~A~^;~}"
+														(loop for entry in entries
+															  collect (second entry)))))))))
+										;collect (if entry (second entry) "")))))))
 
 (defun cyc-setops (org1 org2 class) "Does set operations on the given class of frames for the two given PGDBs. Returns a list of three lists, representing frames within <class> that are unique to org1, unique to org2, and common bwtween org1 and org2"
   (so org1)
   (setq org1s (set-from-list (mapcar #'get-frame-handle (gcai class))))
   (so org2)
   (setq org2s (set-from-list (mapcar #'get-frame-handle (gcai class))))
-  (list (set-to-list (set-diff org1s org2s)) (set-to-list (set-diff org2s org1s)) (set-to-list (set-union org1s org2s))))
+  (list (set-to-list (set-diff org1s org2s)) (set-to-list (set-diff org2s org1s)) (set-to-list (set-intersect org1s org2s))))
 (defun cyc-setops-report (org1 org2 class file) "Writes a report on the setops to the given file. It will write a list of all frames in class that are only in org1, only in org2, and common to org1 and org2, respectively, with headers"
   (destructuring-bind (only1 only2 common) (cyc-setops org1 org2 class)
 	(to-file-or-stream

@@ -1,14 +1,11 @@
-# Which authors to include in the pgdbs; can be overridden per-pgdb with the Authors column in the pgdb table
-authors = hawkins,rice,dwyer,xue,rhee
-
 # Tab-delimited table containing per-pgdb information; see the pipeline documentation for information on this file
 proj-pgdb-table = pgdb-table.txt
 
-# The directory containign the masters files; these direct several of the pipeline stages and are generated with "pmn-pipeline setup"
+# The directory containing the master files; these direct several of the pipeline stages and are generated with "pmn-pipeline setup"
 proj-masters-dir = pgdb-masters
 
 # Directory containing the amino acid fasta files to be fed to e2p2
-proj-fasta-dir = fastas
+proj-fasta-dir = fasta
 
 # Directory where e2p2 will save the resulting .pf files
 proj-e2p2-dir = e2p2
@@ -35,10 +32,10 @@ save-intermediates = yes
 proj-intermediate-dir = intermediate-pgdbs
 
 # Path to the Pathway Tools executable
-ptools-exe = /srv/pmn/ptools/24.0/app/aic-export/pathway-tools/ptools/24.0/pathway-tools
+ptools-exe = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/pathway-tools/aic-export/pathway-tools/ptools/27.0/pathway-tools
 
 # Path to the directory where Pathway Tools keeps its (user) PGDBs
-ptools-pgdbs = /srv/pmn/ptools/24.0/ptools-local/pgdbs/user
+ptools-pgdbs = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/ptools-local/pgdbs/user
 
 # Path to the socket used by Pathway Tools for API access. It should be /tmp/ptools-socket unless you have changed it in ptools' configuration
 ptools-socket = /tmp/ptools-socket
@@ -57,3 +54,21 @@ previous-version-proj =
 
 # What to use for running tasks in parallel. Valid values are parallel, slurm, and none
 parallelism = slurm
+
+# How many tasks to submit for each SLURM job. Higher numbers incur less overhead starting the jobs; lower numbers get started sooner when the cluster is busy. Reasonable values are 2 - 8
+slurm-job-pack = 4
+
+# Versions of the E2P2 and SAVI software and of the RPSD data used in the pipeline. These are used in making citations for E2P2 and SAVI
+e2p2-version = 4.0
+rpsd-version = 4.2
+savi-version = 3.1
+
+# If your HPC cluster uses the module system, this is a list of modules to load for the pipeline
+#module-load = BLAST+
+
+# Files containing info for all authors to be credited for the generated databases(authors-file), and of all organizations given as affiliations in that file (organizations-file). Author lists for individual databases still need to be given in the PGDB table
+authors-file = authors.txt
+organizations-file = organizations.txt
+
+# File that loads the PMN Lisp functions into Pathway Tools
+pmn-lisp-funs = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/lisp/pmn-lisp-funs.lisp

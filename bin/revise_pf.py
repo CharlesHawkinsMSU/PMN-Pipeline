@@ -237,7 +237,7 @@ def process_pf(pfname, rpfname, prot2gene, gene2id = {}, prot2id = {}, numeric_p
                 rpffile.write(line + '\n')
     return gene2id, prot2id
             
-def get_pf_args():
+def get_pf_args(arglist = None):
     par = ap.ArgumentParser(description = '')
     par.add_argument('i', help = 'Input .pf file')
     par.add_argument('-ig', '--input-gff', metavar = 'gff', help = 'Input gff file we want to get gene-protein mappings from', dest = 'f')
@@ -257,7 +257,10 @@ def get_pf_args():
     par.add_argument('-d', '--discard-map-ids', action = 'store_true', help = 'If the input mapping file contains gene and protein IDs, discard them and go with either the accessions or, if -n is specified, newly-assigned numeric IDs', dest = 'd')
     par.add_argument('-gr', '--gene-delete', help='Optional regex used to remove unwanted elements from the gene ID as it appears in its field. Any text matching the regex will be removed. So for example if the gene ID is given as g12345:102938:12038:chr3 where only the first part is what you want, you can give -gr \':.*\' to remove the unwanted chromosome coordinates. Applies to gene IDs read from fasta and gff, but not to input mapping files', dest='gd')
 
-    args = par.parse_args()
+    if arglist:
+        args = par.parse_args(arglist)
+    else:
+        args = par.parse_args()
     if not (args.f or args.ifa or args.im):
         stderr.write('Must specify at least one of: -ig, -if, -im\n')
         exit(1)

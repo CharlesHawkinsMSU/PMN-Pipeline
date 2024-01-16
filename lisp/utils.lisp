@@ -1,5 +1,8 @@
 ; General lisp utility functions, not specific to Pathway Tools
 
+(defun yn (bool)
+  (if bool "Y" "N"))
+
 (defun match-re-all (re string &key (start 0) (return :string))
   "Returns a list of all matches to the regex re in string (nonoverlapping). If re ever matches an empty string the search terminates at that point. :start and :return act as in match-re"
   (loop with span

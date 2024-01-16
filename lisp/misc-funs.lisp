@@ -44,6 +44,7 @@
   "As (current-kb) but returns an orgid"
   (kb-orgid (current-kb)))
 
+; It's expand-frameset, not resolve-frame-spec or resolve-framespec
 (defun expand-frameset (frameset)
   "Expands the given set of frames. A frame expands to itself. A class expands to all class members. A list expands to the union of the expansions of all list members."
   (labels ((expand-frameset-set (frameset)

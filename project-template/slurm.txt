@@ -1,0 +1,6 @@
+slurm-partition = DPB
+slurm-nodes = 1
+slurm-ntasks = 2
+slurm-cpus-per-task = 1
+slurm-mem-per-cpu = 5000
+slurm-time = 10:00:00
