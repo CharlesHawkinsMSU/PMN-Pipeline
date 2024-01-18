@@ -38,9 +38,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			src = path.join(proj_tmpl_path, filename)	
 			dst = path.join(proj, filename)
 			if not path.exists(dst) or stage == 'newproj':
-				if path.isdir(src):
-					copytree(src, dst)
-				else:
+				if not path.isdir(src):
 					copy2(src, dst)
 		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output']:
 			dst = path.join(proj, dirname)
