@@ -1,0 +1,2 @@
+FrameID	common-name	abbrev-name	url	email
+PMN-MSU	Michigan State University	PMN	https://plantcyc.org	curator@plantcyc.org

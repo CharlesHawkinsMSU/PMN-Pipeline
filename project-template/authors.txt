@@ -1,0 +1,4 @@
+FrameID	First-Name	Last-Name	Email	Login-Account	Affiliations	Comment
+|hawkins|	Charles	Hawkins	hawki357@msu.edu	hawki357	PMN-MSU	Charles Hawkins is the director and biocurator of the PMN database project at Michigan State University
+|xue|	Bo	Xue	xuebo@msu.edu	xuebo	PMN-MSU	
+|rhee|	Sue	Rhee	rheeseu6@msu.edu	rheeseu6	PMN-MSU	Sue Rhee is a group leader of the PMN database project at Michigan State University.
