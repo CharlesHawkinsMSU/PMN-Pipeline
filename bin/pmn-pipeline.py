@@ -26,18 +26,25 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 	print(f'Running stage {stage}')
 	script_path = path.dirname(path.realpath(__file__))
 	stage = stage.lower()
-	if stage == 'newproj':
-		print('==Creating new blank project==')
+	if stage == 'newproj' or stage == 'fixproj':
+		if stage == 'newproj':
+			print('==Creating new blank project==')
+		else:
+			print('==Adding any missing project files==')
 		proj_tmpl_path = path.realpath(path.join(script_path, '..', 'project-template'))
 		if not path.exists(proj):
 			os.mkdir(proj)
 		for filename in os.listdir(proj_tmpl_path):
 			src = path.join(proj_tmpl_path, filename)	
 			dst = path.join(proj, filename)
-			if path.isdir(src):
-				copytree(src, dst)
-			else:
-				copy2(src, dst)
+			if not path.exists(dst) or stage == 'newproj':
+				if path.isdir(src):
+					copytree(src, dst)
+				else:
+					copy2(src, dst)
+		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output']:
+			dst = path.join(proj, dirname)
+			os.makedirs(dst, exist_ok = True)
 		print('New project created: %s'%proj)
 		return 0
 	org_filename = config['proj-pgdb-table']
@@ -217,8 +224,8 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
 			subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'])
 	return 0
-if args.stage ==[ 'newproj']:
-	run_stage('newproj', None, None, None, args.proj)
+if args.stage == ['newproj'] or args.stage == ['fixproj']:
+	run_stage(args.stage[0], None, None, None, args.proj)
 elif 'newproj' in args.stage:
 	stderr.write('Error: The newproj command should only be run on its own\n')
 	exit(1)
