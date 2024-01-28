@@ -227,12 +227,16 @@ def read_var_val_file(filename):
 	return d
 
 # Reads in the pgdb-pipeline.txt config file for the PMN pipeline, and fills in default values as needed. Returns a dictionary, generally passed as <config> to other functions
-def read_pipeline_config(configfile):
-	config = read_var_val_file(configfile)
+def read_pipeline_config(configfile, default_file = '/etc/pmn-pipeline.conf'):
+	if default_file and path.exists(default_file):
+		config = read_var_val_file(default_file)
+		config.update(read_var_val_file(configfile))
+	else:
+		config = read_var_val_file(configfile)
 	try:
 		config.setdefault('priam', path.join(config['e2p2'], 'PRIAM_search.jar'))
 		config.setdefault('rpsd', path.join(config['e2p2'], 'rpsd_current'))
-		config.setdefault('priam-profile', path.join(config['e2p2'], 'rpsd_current', 'profiles'))
+		config.setdefault('priam-profile', path.join(config['rpsd'], 'profiles'))
 	except KeyError:
 		pass
 	config.setdefault('parallelism', 'none')
@@ -453,7 +457,7 @@ def read_pipeline_files(args):
 		exit(1)
 	return (config, ptable, org_list)
 
-# This function is for the "unique ID" field in the input table file; e.g. QT for aracyc, which results in most kinds of frame created in aracyc having QT in their frame ID, e.g. ENZRXNQT-12345, which is done to ensure that they don't have name collisions with frames created in metacyc. PathoLogic, however, expects this unique ID to be encoded in a special way in the organism parameters file it takes as input, and this function performs that encoding. This is a manual translation of the perl function written by Chuan
+# This function is for the "unique ID" field in the input table file; e.g. QT for aracyc, which results in most kinds of frame created in aracyc having QT in their frame ID, e.g. ENZRXNQT-12345, which is done to ensure that they don't have name collisions with frames created in metacyc. PathoLogic, however, expects this unique ID to be encoded in Base36 in the organism parameters file it takes as input, so this function is here to perform that encoding. This Python function is a manual translation of the equivalent Perl function written by Chuan
 def counter_from_id(uid):
 	counter = 0
 	for i in range(len(uid)):
@@ -717,7 +721,7 @@ class PathwayTools:
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL)
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
@@ -791,12 +795,13 @@ class PMNPathwayTools (PathwayTools):
 	def __init__(self, config, args = [], timeout = 5, load_pmn_funs = True):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
-		if load_pmn_funs:
-			args_for_super = ['-load', pmn_lisp] + args
-		else:
-			args_for_super = args
+#		if load_pmn_funs:
+#			args_for_super = ['-load', pmn_lisp] + args
+#		else:
+#			args_for_super = args
 		socket = config['ptools-socket']
-		return super().__init__(exe = exe, socket = socket, args = args_for_super, timeout = timeout)
+		super().__init__(exe = exe, socket = socket, args = args, timeout = timeout)
+		self.send_cmd(f'(load "{pmn_lisp}")')
 	def require_pgdbs(self, orglist):
 		if not isinstance(orglist, list):
 			orglist = [orglist]

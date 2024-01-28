@@ -171,7 +171,7 @@
 
 (defun read-savifile-version (dir whichfile)
   "Reads the version string from the specified savi file in the savi input directory"
-  (let ((filename (make-pathname :directory (list :absolute dir "current" "input") :name whichfile)))
+  (let ((filename (make-pathname :directory (list :absolute dir "input") :name whichfile)))
 	(format t "Reading from ~A (from ~A, ~A)~%" filename dir whichfile)
 	(with-open-file (file filename :direction :input)
 	  (let ((firstline (read-line file nil nil)))

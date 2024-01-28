@@ -13,8 +13,9 @@ def main():
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
 	pmn.verbose = args.v
 	return create_savi_citations(config, orgtable, orglist)
-def create_savi_citations(config, orgtable, orglist):
-	
+def create_savi_citations(config, orgtable, orglist, ptools = None):
+	if ptools is None:
+		ptools = pmn.PMNPathwayTools(config)
 	years = set()
 	for orgid, entry in orgtable.items():
 		years.add(entry['Citation Year'])
@@ -23,17 +24,17 @@ def create_savi_citations(config, orgtable, orglist):
 	e2p2_vers = config['e2p2-version']
 	rpsd_vers = config['rpsd-version']
 	savi_vers = config['savi-version']
-	savi_dir = path.join(config['savi'], '..')
-	with pmn.PathwayTools(config['ptools-exe'], args = ['-load', config[ 'pmn-lisp-funs' ]]) as ptools:
-		orgs_avail = ptools.get_org_list()
-		if 'ARA' not in orgs_avail:
-			stderr.write('Error: AraCyc not found. This pipeline requires a copy of AraCyc in order to run. AraCyc may be downloaded from https://plantcyc.org after requesting a free license\n')
-			exit(1)
-		ptools.so('ara')
-		for year in years:
-			cit_cmd = f'(create-savi-citations :year "{year}" :input-dir "{savi_dir}" :e2p2-version "{e2p2_vers}" :savi-version "{savi_vers}" :rpsd-version "{rpsd_vers}")'
-			pmn.info(cit_cmd)
-			ptools.send_cmd(cit_cmd)
+	#savi_dir = path.join(config['savi'], '..')
+	savi_dir = config['savi']
+	orgs_avail = ptools.get_org_list()
+	if 'ARA' not in orgs_avail:
+		stderr.write('Error: AraCyc not found. This pipeline requires a copy of AraCyc in order to run. AraCyc may be downloaded from https://plantcyc.org after requesting a free license\n')
+		exit(1)
+	ptools.so('ara')
+	for year in years:
+		cit_cmd = f'(create-savi-citations :year "{year}" :input-dir "{savi_dir}" :e2p2-version "{e2p2_vers}" :savi-version "{savi_vers}" :rpsd-version "{rpsd_vers}")'
+		pmn.info(cit_cmd)
+		ptools.send_cmd(cit_cmd)
 
 #(year (util.date-time:date-time-year (util.date-time:ut-to-date-time (get-universal-time))))
 # (input-dir (sys:getenv "PMN_SAVI"))

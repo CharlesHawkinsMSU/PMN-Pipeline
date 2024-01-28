@@ -53,10 +53,10 @@ e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
 previous-version-proj =
 
 # What to use for running tasks in parallel. Valid values are parallel, slurm, and none
-parallelism = slurm
+parallelism = none
 
 # How many tasks to submit for each SLURM job. Higher numbers incur less overhead starting the jobs; lower numbers get started sooner when the cluster is busy. Reasonable values are 2 - 8
-slurm-job-pack = 4
+#slurm-job-pack = 4
 
 # Versions of the E2P2 and SAVI software and of the RPSD data used in the pipeline. These are used in making citations for E2P2 and SAVI
 e2p2-version = 4.0

@@ -40,7 +40,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			if not path.exists(dst) or stage == 'newproj':
 				if not path.isdir(src):
 					copy2(src, dst)
-		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output']:
+		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output', 'blastsets', 'intermediate-pgdbs', 'common']:
 			dst = path.join(proj, dirname)
 			os.makedirs(dst, exist_ok = True)
 		print('New project created: %s'%proj)
@@ -205,11 +205,19 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			savi_cmd = [path.join('.', 'runSAVI.sh'), org_savi_in_dir, org_savi_out_dir]
 			pmn.info(f'Running SAVI for {org}Cyc: {" ".join(savi_cmd)}')
 			subprocess.run(savi_cmd)
-		pmn.info(f'SAVI finished, returning to previous directory {prev_dir}')
-		os.chdir(prev_dir)
+		pmn.info(f'SAVI finished, returning to previous directory {prev_wd}')
+		os.chdir(prev_wd)
 	elif stage == 'refine-prepare':
 		print(pmn.blue_text('==Preparing for refine steps=='))
+		create_savi_citations.create_savi_citations(config, orgtable, orglist)
 		refine_prepare.refine_prepare(config, orgtable, orglist)
+	elif stage == 'refine-b':
+		print(pmn.blue_text('==Running Refine-B=='))
+		with pmn.PMNPathwayTools(config) as ptools:
+			for org in orglist:
+				ptools.so(org)
+				ptools.send_cmd('(refine-b)')
+				ptools.send_cmd('(save-kb)')
 	else:
 # Stage wasn't any of the internally-defined stages, so it must refer to a .master file
 		masterfile = stage

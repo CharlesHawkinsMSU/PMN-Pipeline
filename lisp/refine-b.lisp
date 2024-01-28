@@ -284,6 +284,7 @@
 	(loop for g in (get-class-all-instances class)
 		  do (loop for slot in '(accession-1 accession-2)
 				   when (setq slotval (get-slot-value g slot))
+				   when (not (string-equal slotval "NIL"))
 				   when (setq conflicting-gene (gethash slotval frame-hash))
 				   do (finish-output)
 				      (error (format nil "~A and ~A in ~A have the same accession, ~A"

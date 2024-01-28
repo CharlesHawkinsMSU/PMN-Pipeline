@@ -59,6 +59,7 @@ def refine_prepare(config, table, org_list, ptools = None):
 		common_dir = config['proj-common-dir']
 		if not ptools:
 			ptools = pmn.PMNPathwayTools(config)
+			print(ptools.send_cmd('(empty-set)'))
 			generate_common_files(config, ptools)
 		ptools.so('meta')
 		pt_vers = ptools.send_cmd('(ptools-version)').strip('"')
@@ -72,7 +73,9 @@ def refine_prepare(config, table, org_list, ptools = None):
 			year = org_entry['Citation Year']
 
 			pmn.info(f'Writing savi-comment for {orgid}')
-			savi_comment = open(path.join(org_path, 'common', 'savi-comment'), 'w')
+			org_common_dir = path.join(org_path, 'common')
+			os.makedirs(org_common_dir, exist_ok = True)
+			savi_comment = open(path.join(org_common_dir, 'savi-comment'), 'w')
 			savi_comment_text = f'''
 
 # Provides SAVI citations and comments
