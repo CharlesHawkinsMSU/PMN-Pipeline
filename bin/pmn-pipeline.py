@@ -210,6 +210,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 		os.chdir(prev_wd)
 	elif stage == 'refine-prepare':
 		print(pmn.blue_text('==Preparing for refine steps=='))
+		create_authors.create_frames(config, orgtable, orglist)
 		create_savi_citations.create_savi_citations(config, orgtable, orglist)
 		refine_prepare.refine_prepare(config, orgtable, orglist)
 	elif stage == 'refine-b':
