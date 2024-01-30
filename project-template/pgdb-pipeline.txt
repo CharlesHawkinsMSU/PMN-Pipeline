@@ -44,7 +44,7 @@ ptools-socket = /tmp/ptools-socket
 savi = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/savi/current
 
 # SAVI common files directory
-savi-common-dir = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/common
+proj-common-dir = common
 
 # Path to where e2p2 is installed
 e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2

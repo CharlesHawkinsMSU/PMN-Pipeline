@@ -12,6 +12,7 @@ import savi_prepare
 import refine_prepare
 import create_authors
 import create_savi_citations
+import refine_c
 
 stages = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'newversion', 'dump', 'dump-biopax', 'blastset']
 
@@ -218,6 +219,9 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 				ptools.so(org)
 				ptools.send_cmd('(refine-b)')
 				ptools.send_cmd('(save-kb)')
+	elif stage == 'refine-c':
+		print(pmn.blue_text('==Running Refine-C=='))
+		refine_c.refine_c(config, orgtable, orglist)
 	else:
 # Stage wasn't any of the internally-defined stages, so it must refer to a .master file
 		masterfile = stage

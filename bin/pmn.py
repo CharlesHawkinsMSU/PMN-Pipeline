@@ -562,7 +562,7 @@ def check_pipeline_config(config):
 					config['proj-intermediate-dir'] if inter else '.',
 					config['ptools-pgdbs'],
 					config['savi'],
-					config['savi-common-dir'],
+					config['proj-common-dir'],
 					],
 				progname = f'the config file {configfilename}')
 		passed &= check_access(
@@ -578,7 +578,7 @@ def check_pipeline_config(config):
 					config['proj-intermediate-dir'] if inter else '.',
 					config['ptools-pgdbs'],
 					config['savi'],
-					config['savi-common-dir'],
+					config['proj-common-dir'],
 					config['e2p2'],
                                         config['authors-file'],
                                         config['organizations-file'],
@@ -679,11 +679,11 @@ def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True)
 		stderr.write(f'Pathawy tools socket {socket_path} exists but is not a socket\n')
 		raise IOError(socket_path)
 	if handle_errs:
-		socket_msg('(setq *error* nil)', socket_path)
-		cmd_he = f'(handler-case {cmd} (error (e) (setq *error* `(,(type-of e) ,(format nil "~A" e)))))'
+		socket_msg('(setq *status* nil)', socket_path)
+		cmd_he = f'(handler-case {cmd} (error (e) (setq *status* `(,(type-of e) ,(format nil "~A" e)))))'
 		#info(f'{cmd_he}\n')
 		r = socket_msg(cmd_he, socket_path)
-		e = socket_msg('*error*\n', socket_path)
+		e = socket_msg('*status*\n', socket_path)
 		if e != 'NIL':
 			stderr.write(f'{e}\n')
 			raise ChildProcessError()
@@ -707,7 +707,7 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile('\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], timeout = 5):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 5):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-api' not in args:
@@ -721,7 +721,7 @@ class PathwayTools:
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = env)
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
@@ -792,7 +792,7 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], timeout = 5, load_pmn_funs = True):
+	def __init__(self, config, args = [], timeout = 5, env = None, load_pmn_funs = True):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
 #		if load_pmn_funs:
@@ -800,7 +800,7 @@ class PMNPathwayTools (PathwayTools):
 #		else:
 #			args_for_super = args
 		socket = config['ptools-socket']
-		super().__init__(exe = exe, socket = socket, args = args, timeout = timeout)
+		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout)
 		self.send_cmd(f'(load "{pmn_lisp}")')
 	def require_pgdbs(self, orglist):
 		if not isinstance(orglist, list):

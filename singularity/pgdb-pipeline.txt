@@ -35,7 +35,7 @@ proj-intermediate-dir = intermediate-pgdbs
 ptools-pgdbs = /pmn/ptools-local/pgdbs/user
 
 # SAVI common files directory
-savi-common-dir = common
+proj-common-dir = common
 
 # If running as an update to a previous release, set this to the project folder for that previous release; if not then it can be left blank
 previous-version-proj =
