@@ -261,7 +261,7 @@ lisp	(save-kb)
 			# Write blastset.master
 			pmn.info(f'Writing blastset.master for {orgid}')
 			blastset = open(path.join(org_path, 'blastset.master'), 'w')
-			blastset.write(f's_ptools\t{ptools_exe}\ns_script_folder\tperl_scripts\nperl\ts_script_folder/create-blast-dataset-pgdb.pl {orgid} "{org_entry["Version"]}" "{org_entry["Species Name"]}" "{org_entry["Seq Source"]}" {path.join(config["proj-fasta-dir"], org_entry["Sequence File"])} {config["proj-blastsets-dir"]}\n')
+			blastset.write(f's_ptools\t{ptools_exe}\ns_script_folder\t.\nperl\ts_script_folder/create-blast-dataset-pgdb.pl {orgid} "{org_entry["Version"]}" "{org_entry["Species Name"]}" "{org_entry["Seq Source"]}" {org_entry["Sequence File"]} {config["proj-blastsets-dir"]}\n')
 			blastset.close()
 
 	except KeyError as e:
