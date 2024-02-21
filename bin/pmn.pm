@@ -144,7 +144,7 @@ sub read_pgdb_table
 
 			$$db_entry{"Abbrev Name"} = substr($species_words[0], 0, 1).". ".$species_and_subsp;
 		}
-		$$db_entry{"Initial PF File"} ||= $$db_entry{"Sequence File"}.".e2p2v4.orxn.pf";
+		$$db_entry{"Initial PF File"} ||= $$db_entry{"Sequence File"}.".e2p2.orxn.pf";
 		if (!$$db_entry{"PF File"})
 		{
 			my $pf_file = $$db_entry{"Initial PF File"};

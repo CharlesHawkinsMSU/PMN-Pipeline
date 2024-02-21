@@ -147,7 +147,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 
 	elif stage == 'prepare':
 		print(pmn.blue_text('==Preparing master files=='))
-		prepare_result = subprocess.run(['pgdb-prepare.pl', org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe']])
+		prepare_result = subprocess.run([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe']])
 		if prepare_result.returncode != 0:
 			stderr.write('Prepare script failed\n')
 			exit(prepare_result.returncode)

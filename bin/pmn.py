@@ -471,7 +471,7 @@ def counter_from_id(uid):
 		counter += 36**i*v
 	return counter
 
-# Checks if the given version meets or exceeds the given minimum required version. Versions should be strings, consisting of a .-separated list of version components. Each component ov version is compared to the corresponding component of min_version until they differ, at which point True is returned if version is greater or false if min_version is greater. If they match the whole way through then True is returned. Components will be compared numerically if both parse as integers, or compared as strings if one or both do not parse as integers
+# Checks if the given version meets or exceeds the given minimum required version. Versions should be strings, consisting of a .-separated list of version components. Each component of version is compared to the corresponding component of min_version until they differ, at which point True is returned if version is greater or false if min_version is greater. If they match the whole way through then True is returned. Components will be compared numerically if both parse as integers, or compared as strings if one or both do not parse as integers
 def version_meets_min(version, min_version):
 	version_list = version.split('.')
 	min_list = min_version.split('.')
@@ -775,7 +775,7 @@ class PathwayTools:
 
 	def quit_ptools(this):
 		try:
-			if this.pt_proc.poll() is not None:
+			if this.pt_proc.poll() is not None or not path.exists(this.pt_socket):
 				info('Pathway Tools has already quit, nothing to do')
 				return
 		except AttributeError:
