@@ -348,7 +348,7 @@ def read_pgdb_table(tables, config = None):
 						if not w.endswith('.'):
 							abbrev_name += ' '+w
 					entry.setdefault('Abbrev Name', abbrev_name)
-					entry.setdefault('Initial PF File', entry['Sequence File']+'.e2p2v4')
+					entry.setdefault('Initial PF File', entry['Sequence File']+'.e2p2')
 					entry['Initial PF File'] = orxn_pf.sub('', entry['Initial PF File'])
 					entry.setdefault('PF File', pf_re.sub('.orxn.revised.pf', entry['Initial PF File'], 1))
 					year = entry['Citation Year']
@@ -470,6 +470,29 @@ def counter_from_id(uid):
 			raise ValueError(c)
 		counter += 36**i*v
 	return counter
+
+# Checks if the given version meets or exceeds the given minimum required version. Versions should be strings, consisting of a .-separated list of version components. Each component ov version is compared to the corresponding component of min_version until they differ, at which point True is returned if version is greater or false if min_version is greater. If they match the whole way through then True is returned. Components will be compared numerically if both parse as integers, or compared as strings if one or both do not parse as integers
+def version_meets_min(version, min_version):
+	version_list = version.split('.')
+	min_list = min_version.split('.')
+	ldiff = len(min_list) - len(version_list)
+	if ldiff > 0:
+		version_list += [0]*(ldiff)
+	else:
+		min_list += [0]*(-ldiff)
+	for i in range(len(version_list)):
+		try:
+			if int(version_list[i]) < int(min_list[i]):
+				return False
+			elif int(version_list[i]) > int(min_list[i]):
+				return True
+		except ValueError:
+			if str(version_list[i]) < str(min_list[i]):
+				return False
+			elif str(version_list[i]) > str(min_list[i]):
+				return True
+	else:
+		return True
 
 # Check the general runtime environment, that we have the required python version, that required binaries are in the path
 def check_env():

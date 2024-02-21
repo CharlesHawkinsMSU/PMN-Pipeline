@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import re
 from sys import stdin, stdout, stderr
+import sys
 from os import path
 import os
 from shutil import copytree, copy2
@@ -50,10 +52,6 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 	config_filename = config['_filename']
 	perl_scripts_path = path.realpath(path.join(script_path,  '..','perl_scripts'))
 
-# Runs the specified function for each org in orglist, assuming each one has its own folder in basedir
-	def for_each_org(fn, basedir, orglist):
-		for org in orglist:
-			fn(path.join(basedir, org))
 	def check(result, source):
 		if result:
 			print(pmn.green_text(f'Checks passed for {source}'))
@@ -88,13 +86,22 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			exit(1)
 	elif stage == 'e2p2':
 		print(pmn.blue_text('==Running E2P2=='))
-		e2p2_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
+		e2p2v5_exe = path.join(config['e2p2'], 'e2p2.py')
+		e2p2v4_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
+		if path.exists(e2p2v5_exe):
+			e2p2_exe = e2p2v5_exe
+		else:
+			e2p2_exe = e2p2v4_exe
 		e2p2_cmds = []
 		for orgid, org_entry in orgtable.items():
 			cmd = [
+					sys.executable,
 					e2p2_exe,
 					'--input', org_entry['Sequence File'],
-					'--output', org_entry['Initial PF File'],
+					'--output', org_entry['Initial PF File']
+					]
+			if e2p2_exe is e2p2v4_exe:
+				cmd += [
 					'--blastp', 'blastp',
 					'--java', 'java',
 					'--priam_search', config['priam'],
@@ -175,7 +182,10 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			stderr.write('revise_pf.py not found\n')
 			exit(1)
 		for org, entry in orgtable.items():
-			arglist = [entry['Initial PF File']+'.orxn.pf']
+			if path.exists(path.join(config['e2p2'], 'e2p2.py')):
+				arglist = [re.sub('\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
+			else:
+				arglist = [entry['Initial PF File']+'.orxn.pf']
 			for arg, col in arg_col:
 				try:
 					#arg_dict[arg] = entry[col]
