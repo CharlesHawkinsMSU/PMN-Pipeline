@@ -743,8 +743,11 @@ class PathwayTools:
 		if os.path.exists(socket):
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
+		pt_env = os.environ.copy()
+		pt_env.update(env or {})
+		pt_env['PTOOLS-ACCESS-SOCKET'] = socket
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = env)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = pt_env)
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
@@ -815,14 +818,15 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], timeout = 5, env = None, load_pmn_funs = True):
+	def __init__(self, config, args = [], socket = None, timeout = 5, env = None, load_pmn_funs = True):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
 #		if load_pmn_funs:
 #			args_for_super = ['-load', pmn_lisp] + args
 #		else:
 #			args_for_super = args
-		socket = config['ptools-socket']
+		if socket is None:
+			socket = config['ptools-socket']
 		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout)
 		self.send_cmd(f'(load "{pmn_lisp}")')
 	def require_pgdbs(self, orglist):

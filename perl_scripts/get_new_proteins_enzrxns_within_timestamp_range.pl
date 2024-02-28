@@ -25,10 +25,12 @@ use lib "$FindBin::Bin/../lib_perl5.16";
 use perlcyc;
 use strict;
 use warnings;
+use Env;
 
 
 my $DB = $ARGV[0];
 my $cyc = perlcyc -> new ($DB);
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 my $new_proteins = &get_new($cyc, "|Polypeptides|", $ARGV[1], $ARGV[2]);
 my $new_enzrxns = &get_new($cyc, "|Enzymatic-Reactions|", $ARGV[1], $ARGV[2]);

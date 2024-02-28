@@ -25,6 +25,7 @@ use lib "$FindBin::Bin/../lib_perl5.16";
 use perlcyc;
 use strict;
 use warnings;
+use Env;
 
 
 # process arguments
@@ -72,6 +73,8 @@ close IN;
 # read metacyc comments
 #
 my $cyc = perlcyc -> new("meta");
+
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 my %metacyc_comment;
 my @meta_pwy= $cyc -> all_pathways ();

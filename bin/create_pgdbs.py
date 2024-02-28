@@ -40,6 +40,7 @@ def create_pgdbs(config, table, org_list = None, ptools = None):
 			#	log.buffer.write(line)
 			#	print(line.decode('UTF-8').rstrip())
 			patho_cmd = f'(batch-pathologic-startup-fn "{entry["Version"]}" "{org_path}" :hole-filler? nil :complex-inference? nil :operon-predictor? nil :tip? nil :do-overview? nil :web-cel-ov? nil :download-publications? t :dump-flat-files-biopax? nil :taxonomic-pruning? t :blast-data? t :omit-name-matching? nil)'
+			patho_cmd = f'(batch-pathologic "{entry["Version"]}" "{org_path}" :hole-filler? nil :complex-inference? nil :operon-predictor? nil :tip? nil :do-overview? nil :web-cel-ov? nil :download-publications? t :dump-flat-files-biopax? nil :taxonomic-pruning? t :blast-data? t :omit-name-matching? nil :replace-organism? t :private-org-counter? t :suppress-metadata-saving? t)'
 			pmn.info(patho_cmd)
 			ptools.send_cmd(patho_cmd, handle_errs = False)
 	except KeyError as e:

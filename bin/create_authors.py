@@ -12,7 +12,7 @@ def main():
 	pmn.verbose = args.v
 	create_frames(config, orgtable, orglist)
 
-def create_frames(config, orgtable, orglist = None):
+def create_frames(config, orgtable, orglist = None, ptools = None):
 	pmn.info(f'Will create organizations and authors for {len(orglist)} organism(s)')
 	organization_table = pmn.read_table_file(config['organizations-file'], 'FrameID')
 	pmn.info(f'Read {len(organization_table)} organization(s) from {config["organizations-file"]}')
@@ -57,48 +57,49 @@ def create_frames(config, orgtable, orglist = None):
 			orgn_entry['_orgids'].update(entry['_orgids'])
 
 
-	pmn.info(f'Will start Pathway Tools from {config["ptools-exe"]} and connect to the socket at {config["ptools-socket"]}')
-	with pmn.PathwayTools(config['ptools-exe']) as ptools:
-		orgs_avail = ptools.get_org_list()
-		origin_orgids = {}  # Which organism db has been used to create each Organization frame (it will then be propagated to all the others)
+	if ptools is None:
+		pmn.info(f'Create Authors step will start Pathway Tools from {config["ptools-exe"]} and connect to the socket at {config["ptools-socket"]}')
+		ptools = pmn.PathwayTools(config['ptools-exe'])
+	orgs_avail = ptools.get_org_list()
+	origin_orgids = {}  # Which organism db has been used to create each Organization frame (it will then be propagated to all the others)
 
-		# We will go through each pgdb in the orglist, then go through each organization it needs (the "_orgns" field). For each such organization, we check if it already exists in this pgdb (would've been imported from metacyc or plantcyc due to authorship of one or more frames) in which case we fill in the info from our Organizations file. Otherwises create it anew in the database
-		for orgid in orglist:
-			pmn.info(f' Creating Organization frames for {orgid}')
-			org_entry = orgtable[orgid]
-			ptools.so(orgid)
-			for orgn in org_entry['_orgns']:
-				orgn_symbol = pmn.as_lisp_symbol(orgn)
-				if ptools.send_cmd(f'(coercible-to-frame-p {orgn_symbol})') != 'T':
-					pmn.info(f'  Organization frame {orgn} does not exist, creating blank frame')
-					create_cmd = f'(create-instance {orgn_symbol} \'(|Organizations|))'
-					pmn.info(f'  {create_cmd}')
-					ptools.send_cmd(create_cmd)
-				else:
-					pmn.info(f'  Organization frame {orgn} exists, will fill in info')
-				for slot, val in organization_table[orgn].items():
-					if not (slot == 'FrameID' or slot.startswith('_')):
-						put_cmd = f'(put-slot-value {orgn_symbol} \'{slot} "{val}")'
-						pmn.info(f'  {put_cmd}')
-						ptools.send_cmd(put_cmd)
-			pmn.info(f' Creating Author frames for {orgid}')
-			for author in org_entry['Authors'].split(' '):
-				author_symbol = pmn.as_lisp_symbol(author)
-				if ptools.send_cmd(f'(coercible-to-frame-p {author_symbol})') != 'T':
-					pmn.info(f'  Author frame {author} does not exist, creating blank frame')
-					create_cmd = f'(create-instance {author_symbol} \'(|People|))'
-					pmn.info(f'  {create_cmd}')
-					ptools.send_cmd(create_cmd)
-				else:
-					pmn.info(f'  Author frame {author} exists, will fill in info')
-				for slot, val in author_table[author].items():
-					if not (slot == 'FrameID' or slot.startswith('_')):
-						put_cmd = f'(put-slot-value {author_symbol} \'{slot} "{val}")'
-						pmn.info(f'  {put_cmd}')
-						ptools.send_cmd(put_cmd)
+	# We will go through each pgdb in the orglist, then go through each organization it needs (the "_orgns" field). For each such organization, we check if it already exists in this pgdb (would've been imported from metacyc or plantcyc due to authorship of one or more frames) in which case we fill in the info from our Organizations file. Otherwises create it anew in the database
+	for orgid in orglist:
+		pmn.info(f' Creating Organization frames for {orgid}')
+		org_entry = orgtable[orgid]
+		ptools.so(orgid)
+		for orgn in org_entry['_orgns']:
+			orgn_symbol = pmn.as_lisp_symbol(orgn)
+			if ptools.send_cmd(f'(coercible-to-frame-p {orgn_symbol})') != 'T':
+				pmn.info(f'  Organization frame {orgn} does not exist, creating blank frame')
+				create_cmd = f'(create-instance {orgn_symbol} \'(|Organizations|))'
+				pmn.info(f'  {create_cmd}')
+				ptools.send_cmd(create_cmd)
+			else:
+				pmn.info(f'  Organization frame {orgn} exists, will fill in info')
+			for slot, val in organization_table[orgn].items():
+				if not (slot == 'FrameID' or slot.startswith('_')):
+					put_cmd = f'(put-slot-value {orgn_symbol} \'{slot} "{val}")'
+					pmn.info(f'  {put_cmd}')
+					ptools.send_cmd(put_cmd)
+		pmn.info(f' Creating Author frames for {orgid}')
+		for author in org_entry['Authors'].split(' '):
+			author_symbol = pmn.as_lisp_symbol(author)
+			if ptools.send_cmd(f'(coercible-to-frame-p {author_symbol})') != 'T':
+				pmn.info(f'  Author frame {author} does not exist, creating blank frame')
+				create_cmd = f'(create-instance {author_symbol} \'(|People|))'
+				pmn.info(f'  {create_cmd}')
+				ptools.send_cmd(create_cmd)
+			else:
+				pmn.info(f'  Author frame {author} exists, will fill in info')
+			for slot, val in author_table[author].items():
+				if not (slot == 'FrameID' or slot.startswith('_')):
+					put_cmd = f'(put-slot-value {author_symbol} \'{slot} "{val}")'
+					pmn.info(f'  {put_cmd}')
+					ptools.send_cmd(put_cmd)
 
-			pmn.info(f' Saving database {orgid}')
-			ptools.send_cmd('(save-kb)')
+		pmn.info(f' Saving database {orgid}')
+		ptools.send_cmd('(save-kb)')
 				
 
 if __name__ == "__main__":

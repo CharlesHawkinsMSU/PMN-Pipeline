@@ -26,6 +26,7 @@ use lib "$FindBin::Bin/../lib_perl5.16";
 
 use perlcyc;
 use strict;
+use Env;
 
 ###This script deletes all existing Phytozome links to proteins and reloads links using Protein "accession-1". 
 
@@ -38,7 +39,7 @@ my $acc = $ARGV[2];
 
 my $DB= $ARGV[0];
 my $cyc = perlcyc -> new ($DB);
-
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 my @Proteins=$cyc->get_class_all_instances("|Polypeptides|");
 foreach my $protein (@Proteins){

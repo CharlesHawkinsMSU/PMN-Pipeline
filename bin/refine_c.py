@@ -2,11 +2,13 @@
 
 from sys import stdin, stdout, stderr
 import argparse as ap
+import re
 import pmn
 import subprocess
 import shutil
 import os
 
+re_disp = re.compile(b'Actual display used: (:[0-9]+)')
 def main():
     par = ap.ArgumentParser(description = 'Runs refine-c on the PMN pipeline')
     pmn.add_standard_args(par)
@@ -18,10 +20,10 @@ def main():
 def refine_c(config, orgtable, orglist):
     pmn.info('==Running Refine-C==')
     xpra_path = shutil.which('xpra')
-    display = ':99'
     if xpra_path is not None:
         pmn.info('xpra found, using xpra')
-        subprocess.run([xpra_path, 'start', display])
+        res = subprocess.run([xpra_path, 'start'], capture_output = True)
+        display = re_disp.search(res.stderr).group(1).decode()
         env = os.environ.copy()
         env['DISPLAY'] = display
     else:

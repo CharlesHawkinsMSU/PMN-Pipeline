@@ -26,6 +26,7 @@ use perlcyc;
 use strict;
 use warnings;
 use LWP::Simple;
+use Env;
 
 print("Blast dataset generation will now commence\n");
 
@@ -79,6 +80,7 @@ if ($sp =~ /arabidopsis.*thaliana/i && $ARGV[5] && -s $ARGV[5]) {
 # current PGDB
 #
 my $cyc = perlcyc -> new($DB);
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 # get info for all enzymes (monomer only)
 #

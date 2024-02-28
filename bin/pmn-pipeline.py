@@ -17,6 +17,7 @@ import create_savi_citations
 import refine_c
 
 stages = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'newversion', 'dump', 'dump-biopax', 'blastset']
+stages_needing_ptools = set(['create', 'dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset'])
 
 par = ap.ArgumentParser(description = 'Used to run each stage of the PMN release pipeline')
 pmn.add_standard_pmn_args(par, action='run')
@@ -25,7 +26,7 @@ par.add_argument('stage', nargs = '+', help = 'Which stage of the pipeline to ru
 args = par.parse_args()
 pmn.verbose = args.v
 
-def run_stage(stage, config, table, orglist = None, proj = '.'):
+def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None):
 	print(f'Running stage {stage}')
 	script_path = path.dirname(path.realpath(__file__))
 	stage = stage.lower()
@@ -43,7 +44,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			if not path.exists(dst) or stage == 'newproj':
 				if not path.isdir(src):
 					copy2(src, dst)
-		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output', 'blastsets', 'intermediate-pgdbs', 'common']:
+		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output', 'blastsets', 'intermediate-pgdbs', 'common', 'sockets']:
 			dst = path.join(proj, dirname)
 			os.makedirs(dst, exist_ok = True)
 		print('New project created: %s'%proj)
@@ -78,6 +79,19 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 			passed = False
 		else:
 			print(pmn.green_text('No existing Pathway Tools instance, check passed'))
+		print('\n==Checking for AraCyc and PlantCyc==')
+		aracyc_path = path.join(config['ptools-pgdbs'], 'aracyc')
+		if path.exists(aracyc_path):
+			print(pmn.green_text(f'Found AraCyc at {aracyc_path}'))
+		else:
+			print(pmn.red_text(f'No AraCyc found in {config["ptools-pgdbs"]}'))
+			passed = False
+		plantcyc_path = path.join(config['ptools-pgdbs'], 'plantcyc')
+		if path.exists(plantcyc_path):
+			print(pmn.green_text(f'Found PlantCyc at {plantcyc_path}'))
+		else:
+			print(pmn.red_text(f'No PlantCyc found in {config["ptools-pgdbs"]}'))
+			passed = False
 		if passed:
 			print(pmn.green_text('\nAll checks passed!'))
 			exit(0)
@@ -154,10 +168,10 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 
 	elif stage == 'create':
 		print(pmn.blue_text('==Creating PGDBs with PathoLogic=='))
-		create_pgdbs.create_pgdbs(config, orgtable)
+		create_pgdbs.create_pgdbs(config, orgtable, orglist, ptools)
 	elif stage == 'revise':
 		print(pmn.blue_text('==Revising E2P2 files with gene IDs=='))
-		# run revise_pf.py
+		# Run revise_pf.py
 		# arg_col enumerates columns in the input table used for revise_pf.py and maps them to arguments to be given to revise_pf.py
 		arg_col = [
 				('-ig', 'GFF File'),
@@ -220,9 +234,9 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 		os.chdir(prev_wd)
 	elif stage == 'refine-prepare':
 		print(pmn.blue_text('==Preparing for refine steps=='))
-		create_authors.create_frames(config, orgtable, orglist)
-		create_savi_citations.create_savi_citations(config, orgtable, orglist)
-		refine_prepare.refine_prepare(config, orgtable, orglist)
+		create_authors.create_frames(config, orgtable, orglist, ptools = ptools)
+		create_savi_citations.create_savi_citations(config, orgtable, orglist, ptools = ptools)
+		refine_prepare.refine_prepare(config, orgtable, orglist, ptools = ptools)
 	elif stage == 'refine-b':
 		print(pmn.blue_text('==Running Refine-B=='))
 		with pmn.PMNPathwayTools(config) as ptools:
@@ -239,19 +253,24 @@ def run_stage(stage, config, table, orglist = None, proj = '.'):
 		if not masterfile.endswith('.master'):
 			masterfile = masterfile + '.master'
 		print(pmn.blue_text(f'==Running master file {masterfile}=='))
-		masterscript = path.join(perl_scripts_path, 'pmn-release-pipeline-general.pl')
+		masterscript = path.join(perl_scripts_path, 'pmn-release-pipeline-parallel.pl')
 		for org in orgtable:
 			stderr.write('Running %s on %s\n'%(masterfile, org))
 			masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
-			subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'])
+			perl_env = os.environ.copy()
+			perl_env['PTOOLS-ACCESS-SOCKET']=ptools.pt_socket
+			print(perl_env)
+			subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env=perl_env)
 	return 0
+
+# This code determines the stage list and runs them
 if args.stage == ['newproj'] or args.stage == ['fixproj']:
 	run_stage(args.stage[0], None, None, None, args.proj)
 elif 'newproj' in args.stage:
 	stderr.write('Error: The newproj command should only be run on its own\n')
 	exit(1)
 else:
-	print(f'Running stages {args.stage}')
+	print(f'Running stages: {", ".join(args.stage)}')
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
 	config['_filename'] = args.c
 	prev_stage = -1
@@ -280,7 +299,19 @@ else:
 		stage_n = length(stages)
 		for i in range(prev_stage+1, stage_n):
 			stage_list.append(i)
-
+	if stages_needing_ptools.intersection(args.stage):
+		if 'SLURM_JOB_ID' in os.environ:
+			sock_id = os.environ['SLURM_JOB_ID']
+		elif 'SLURM_JOBID' in os.environ:
+			sock_id = os.environ['SLURM_JOBID']
+		else:
+			sock_id = os.getpid()
+		sock_name = path.join(config['proj-sock-dir'], f'socket-{sock_id}')
+		pmn.info(f'Starting Pathway Tools using socket {sock_name}')
+		ptools = pmn.PMNPathwayTools(config, socket = sock_name)
+	else:
+		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
+		ptools = None
 	for stage_i in stage_list:
-		run_stage(stages[stage_i], config, orgtable, orglist, args.proj)
+		run_stage(stages[stage_i], config, orgtable, orglist, args.proj, ptools = ptools)
 		print()

@@ -24,6 +24,7 @@ use lib "$FindBin::Bin/../lib_perl5.16";
 
 use strict;
 use perlcyc;
+use Env;
 
 my %metacyc;
 my %plantcyc;
@@ -50,6 +51,7 @@ my @DBS_TO_DELETE = ("METACYC" , "PLANTCYC");
 
 my $DB= $ARGV[0];
 my $cyc = perlcyc -> new ($DB);
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 
 my @pwy = $cyc -> all_pathways ();

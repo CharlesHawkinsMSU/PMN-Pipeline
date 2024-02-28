@@ -21,29 +21,29 @@ def main():
 	pmn.verbose = args.v
 	return refine_prepare(config, table, org_list)
 def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
-		common_dir = config['proj-common-dir']
-		pmn.info(f'Generating common files in {common_dir}')
-		ptools.require_pgdbs(refs)
-		all_pwy_file_pre = path.join(common_dir, "all_pwy")
-		date = time.strftime('%d-%b-%Y')
-		for ref in refs:
-			all_pwy_file = all_pwy_file_pre + '.' + ref.lower()
-			pmn.info(f'Generating all-pathway list for {ref}Cyc: {all_pwy_file}')
-			ptools.so(ref)
-			#ref_vers = ptools.send_cmd('(kb-version (current-kb))').strip('"')
-			all_pwy_cmd = f'(to-file-or-stream "{all_pwy_file}" (format stream "#{ref}Cyc Version: ~A~%" (kb-version (current-kb))) (write-list stream (loop for p in (all-pathways) collect (get-frame-handle p))))'
-			ptools.send_cmd(all_pwy_cmd)
-		pmn.info(f'Generating ec_name.map.parsed')
-		ptools.so('ec-numbers')
-		ec_names_file = path.join(common_dir, "ec_name.map.parsed")
-		ec_numbers_cmd = f'(to-file-or-stream "{ec_names_file}" (format stream "# ENZYME nomenclature database Version: {date}~%")(print-alist stream (loop for ec in (get-class-all-instances "EC-Numbers") collect (list (gsv ec \'ec-id) (gsv ec \'common-name)))))'
-		ptools.send_cmd(ec_numbers_cmd)
+	common_dir = config['proj-common-dir']
+	pmn.info(f'Generating common files in {common_dir}')
+	ptools.require_pgdbs(refs)
+	all_pwy_file_pre = path.join(common_dir, "all_pwy")
+	date = time.strftime('%d-%b-%Y')
+	for ref in refs:
+		all_pwy_file = all_pwy_file_pre + '.' + ref.lower()
+		pmn.info(f'Generating all-pathway list for {ref}Cyc: {all_pwy_file}')
+		ptools.so(ref)
+		#ref_vers = ptools.send_cmd('(kb-version (current-kb))').strip('"')
+		all_pwy_cmd = f'(to-file-or-stream "{all_pwy_file}" (format stream "#{ref}Cyc Version: ~A~%" (kb-version (current-kb))) (write-list stream (loop for p in (all-pathways) collect (get-frame-handle p))))'
+		ptools.send_cmd(all_pwy_cmd)
+	pmn.info(f'Generating ec_name.map.parsed')
+	ptools.so('ec-numbers')
+	ec_names_file = path.join(common_dir, "ec_name.map.parsed")
+	ec_numbers_cmd = f'(to-file-or-stream "{ec_names_file}" (format stream "# ENZYME nomenclature database Version: {date}~%")(print-alist stream (loop for ec in (get-class-all-instances "EC-Numbers") collect (list (gsv ec \'ec-id) (gsv ec \'common-name)))))'
+	ptools.send_cmd(ec_numbers_cmd)
 
-		pmn.info('Generating metacyc-rxn-name-mapping')
-		ptools.so('meta')
-		meta_names_file = path.join(common_dir, "metacyc-rxn-name-mapping")
-		ptools.send_cmd(f'(setq eckb (find-kb \'ec-numbers))')
-		ptools.send_cmd(f'(to-file-or-stream "{meta_names_file}" (format stream "# ENZYME nomenclature database Version: #MetaCyc Version: ~%" (kb-version (current-kb)))(print-alist stream (loop for r in (get-class-all-instances "Reactions") for cn = (gsv r \'common-name) for name = (if cn cn (if (coercible-to-frame-p (setq ec (get-slot-value r \'ec-number)) :kb eckb) (get-slot-value ec \'common-name :kb eckb) nil)) when name collect (list (gfh r) name))))')
+	pmn.info('Generating metacyc-rxn-name-mapping')
+	ptools.so('meta')
+	meta_names_file = path.join(common_dir, "metacyc-rxn-name-mapping")
+	ptools.send_cmd(f'(setq eckb (find-kb \'ec-numbers))')
+	ptools.send_cmd(f'(to-file-or-stream "{meta_names_file}" (format stream "# ENZYME nomenclature database Version: #MetaCyc Version: ~%" (kb-version (current-kb)))(print-alist stream (loop for r in (get-class-all-instances "Reactions") for cn = (gsv r \'common-name) for name = (if cn cn (if (coercible-to-frame-p (setq ec (get-slot-value r \'ec-number)) :kb eckb) (get-slot-value ec \'common-name :kb eckb) nil)) when name collect (list (gfh r) name))))')
 
 		
 
@@ -59,8 +59,7 @@ def refine_prepare(config, table, org_list, ptools = None):
 		common_dir = config['proj-common-dir']
 		if not ptools:
 			ptools = pmn.PMNPathwayTools(config)
-			print(ptools.send_cmd('(empty-set)'))
-			generate_common_files(config, ptools)
+		generate_common_files(config, ptools)
 		ptools.so('meta')
 		pt_vers = ptools.send_cmd('(ptools-version)').strip('"')
 
@@ -146,7 +145,7 @@ s_seq_source	{org_entry["Seq Source"]}
 s_seq_source_acc	accession-1
 
 s_cm_folder	common
-s_script_folder	perl_scripts
+s_script_folder	../perl_scripts
 fs_pwy_del	remove
 fs_pwy_add	ic
 

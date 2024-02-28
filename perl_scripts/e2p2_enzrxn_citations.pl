@@ -25,6 +25,7 @@ use lib "$FindBin::Bin/../lib_perl5.16";
 use perlcyc;
 use strict;
 use warnings;
+use Env;
 
 
 # process arguments
@@ -38,6 +39,7 @@ my ($DB, $citation, $start, $end) = @ARGV;
 # current PGDB
 #
 my $cyc = perlcyc -> new($DB);
+$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 my @enzrxns = $cyc -> get_class_all_instances("|Enzymatic-Reactions|");
 
