@@ -799,13 +799,11 @@ class PathwayTools:
 	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30):
 		this.pt_exe = exe
 		this.pt_socket = socket
-		if '-api' not in args:
-			args += ['-api']
 		if '-lisp' not in args:
 			args += ['-lisp']
 		args += ['-no-patch-download']
 		# Under Singularity, environment variables aren't making it to pathway tools for some reason, so as a workaround we will set the socket path and tell it to start the api daemon manually using -eval. Also, there is an apparent bug in ptools 27.0 where spaces are not accepted in an -eval statement (it treats them as if they were EOF markers and stops reading), so as another workaround we use newlines instead
-		args += ['-eval', f'(progn\n(setf\n*socket-pathname*\n"{socket}")(start-external-access-daemon))']
+		args += ['-eval', f'(progn (setf\n*socket-pathname*\n"{socket}")(start-external-access-daemon))']
 		this.pt_args = args
 		cmd = [exe] + args
 		this.pt_cmdline = ' '.join(cmd)

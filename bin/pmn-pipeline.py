@@ -240,15 +240,16 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None):
 		refine_prepare.refine_prepare(config, orgtable, orglist, ptools = ptools)
 	elif stage == 'refine-b':
 		print(pmn.blue_text('==Running Refine-B=='))
-		with pmn.PMNPathwayTools(config) as ptools:
-			for org in orglist:
-				entry = orgtable[org]
-				ptools.so(org)
-				refdbs = [entry['Reference DB']]
-				if entry['Also MetaCyc']:
-					refdbs += ['Meta']
-				ptools.send_cmd(f'(refine-b :ref-kbs \'({" ".join(refdbs)}))')
-				ptools.send_cmd('(save-kb)')
+		if ptools is None:
+			ptools = pmn.PMNPathwayTools(config)
+		for org in orglist:
+			entry = orgtable[org]
+			ptools.so(org)
+			refdbs = [entry['Reference DB']]
+			if entry['Also MetaCyc']:
+				refdbs += ['Meta']
+			ptools.send_cmd(f'(refine-b :ref-kbs \'({" ".join(refdbs)}))')
+			ptools.send_cmd('(save-kb)')
 	elif stage == 'refine-c':
 		print(pmn.blue_text('==Running Refine-C=='))
 		refine_c.refine_c(config, orgtable, orglist)
