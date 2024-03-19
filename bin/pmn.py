@@ -796,7 +796,7 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile(r'\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 5):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 15):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-api' not in args:
@@ -885,7 +885,7 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], socket = None, timeout = 5, env = None, load_pmn_funs = True):
+	def __init__(self, config, args = [], socket = None, timeout = 15, env = None, load_pmn_funs = True):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
 #		if load_pmn_funs:
