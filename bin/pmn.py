@@ -38,6 +38,42 @@ def green_text(string):
 def blue_text(string):
 	return with_sgr(string, 34)
 
+# Converts a string to a boolean, where the string can be Y/yes/1/t/True/etc. for True or n/NO/0/F/false/etc. for False. Raises a ValueError if it doesn't recognize the string as a boolean. The second argument indicates the value to return in the case of an empty string; it should be True, False, or None (meaning raise a ValueError). Used when reading boolean columns from the PGDB table and boolean variables from the PGDB config file
+def fuzzy_bool(bool_str, accept_empty_as = False):
+	bool_str_lc = bool_str.lower()
+	if bool_str == '':
+		if accept_empty_as is None:
+			raise ValueError(bool_str)
+		else:
+			return accept_empty_as
+	elif 'yes'.startswith(bool_str_lc) or 'true'.startswith(bool_str_lc) or bool_str_lc == '1':
+		return True
+	elif 'no'.startswith(bool_str_lc) or 'false'.startswith(bool_str_lc) or bool_str_lc == '0':
+		return False
+	else:
+		raise ValueError(bool_str)
+
+# When given a dictionary that maps from strings to strings, converts the selected keys' values to bools using fuzzy_bool(). If keys is None, it converts all the keys in the dict. Set if_not_found to control what happens when a requested key isn't found; it should be "ignore" (leave key unset), "true" (put in key with value True), "false" (put in key with value false), or "error" (raise a KeyError). Set if_empty to control what happens for an empty string; it is passed to fuzzy_bool as accept_empty_as
+def fuzzy_bool_dict(d, keys = None, if_not_found = "false", if_empty = False):
+	if keys is None:
+		keys = d.keys()
+	for key in keys:
+		try:
+			val = d[key]
+			d[key] = fuzzy_bool(val, if_empty)
+		except KeyError:
+			if if_not_found == 'false':
+				d[key] = False
+			elif if_not_found == 'true':
+				d[key] = True
+			elif if_not_found == 'ignore':
+				pass
+			elif if_not_found == 'error':
+				raise
+			else:
+				e = ValueError(if_not_found)
+				e.add_note(f'The if_not_found argument to fuzzy_bool_dict() should be "true", "false", "ignore", or "error"; instead received "{if_not_found}"')
+				raise e
 # Convenience function that allows filenames and already-open files to be used interchangeably. 'where' should be either an already-open file (returned as-is; 'mode' is ignored), a filename (opened with the specified mode, and the file handle returned), or either None or '-' (stdin or stdout is returned, as appropriate given the value of mode).
 def openfile(where, mode = 'r'):
 	if where is None or where == '-':
@@ -57,6 +93,21 @@ def set_from_values(d):
 	for _, val in d.items():
 		s.add(val)
 	return s
+
+def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
+	if y_flag:
+		return True
+	while True:
+		try:
+			response = input(prompt)
+			return fuzzy_bool(response, None)
+		except ValueError:
+			if unknown_is_no:
+				return False
+			else:
+				stderr.write('Please answer Yes, No, y, n, T, false, 1, 0, etc\n')
+		except KeyboardInterrupt:
+			return False
 
 # Parses an attribute string of the form "attr1=val1;attr2=val2;..." into a dictionary. Used in parsing gff files
 def parse_attrs(attr_str):
@@ -274,8 +325,8 @@ def read_table_file(filename, key_col):
 		table[entry[key_col]] = entry
 	return table
 
-pf_re = re.compile('(.pf)?$')
-orxn_pf = re.compile('\.orxn\.pf$')
+pf_re = re.compile(r'(.pf)?$')
+orxn_pf = re.compile(r'\.orxn\.pf$')
 # Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used.
 def read_pgdb_table(tables, config = None):
 	# proj_dirs enumerates project directories, with a tuple that includes the key in the config file specifying the directory and the column in the table file that contains a file that should be located there
@@ -359,10 +410,14 @@ def read_pgdb_table(tables, config = None):
 					entry.setdefault('RXN Map', f'metacyc-rxn-name-mapping')
 					entry.setdefault('PWY Metacyc', f'all_pwy.meta')
 					entry.setdefault('PWY Plantcyc', f'all_pwy.plant')
+					entry.setdefault('Reference DB', 'Plant')
 					try:
 						entry['_Authors'] = [as_lisp_symbol(a) for a in entry['Authors'].split(' ')]
 					except KeyError:
 						pass
+
+					# Deal with boolean columns, converting "fuzzy" bools like "Yes", "T", or "0" to Python bools, and defaulting empty ones to False
+					fuzzy_bool_dict(entry, ['Also MetaCyc'])
 
 					# Fields below are required for all pgdb entries; reference the required fields so they generate an error if absent
 					entry['Species Name']
@@ -422,6 +477,7 @@ def add_standard_pmn_args(par, action = 'operated on'):
 	par.add_argument('-t', '--pgdb-table', help = 'Table file of PGDBs. If not given the filename will be read from the config file', dest = 't')
 	par.add_argument('-v', '--verbose', action = 'store_true', help = 'Print info messages while running', dest = 'v')
 	par.add_argument('-p', '--proj', default = '.', help = 'Project directory. Defaults to the current working directory', dest = 'proj')
+	par.add_argument('-y', '--yes', action = 'store_true', help = 'Assume yes to all prompts', dest = 'y')
 
 verbose = False
 def info(msg, logfile = None):
@@ -532,8 +588,8 @@ def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
 			passed = False
 	return passed
 
-# Checks the given list of files for the given type of access for the current user. <access> should be os.R_OK, os.W_OK, os.X_OK, or os.F_OK. <reason> will be put after the filename in error messages to indicate to the user where the requirement for this file came from
-def check_access(file_list, access, reason = 'required by the pipeline'):
+# Checks the given list of files for the given type of access for the current user. <access> should be os.R_OK, os.W_OK, os.X_OK, or os.F_OK. <reason> will be put after the filename in error messages to indicate to the user where the requirement for this file came from. If ignore_missing is True, nonexistant files will not generate an error or failure (can be used if existence has already been checked and an error printed)
+def check_access(file_list, access, reason = 'required by the pipeline', ignore_missing = False):
 	passed = True
 	acc_errs = {
 			os.F_OK: 'Cannot find file or directory',
@@ -547,6 +603,8 @@ def check_access(file_list, access, reason = 'required by the pipeline'):
 		exit(2)
 
 	for filename in file_list:
+		if ignore_missing and not path.exists(filename):
+			continue
 		if not os.access(filename, access):
 			stderr.write(f'{access_err} {filename}, {reason}.\n')
 			passed = False
@@ -561,17 +619,23 @@ def check_pipeline_config(config):
 	else:
 		inter = False
 	try:
-		e2p2_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
+		e2p2v4_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
+		e2p2v5_exe = path.join(config['e2p2'], 'e2p2.py')
+		if path.exists(e2p2v4_exe):
+			passed &= check_access([e2p2v4_exe], os.X_OK, f'specified in {configfilename}')
+		elif not path.exists(e2p2v5_exe):
+			stderr.write(f'Error: Require either {e2p2v4_exe} (for E2P2v4) or {e2p2v5_exe} (for E2P2v5), but neither exists')
+			passed = False
+			e2p2_exe = '.'
 
 		passed &= check_exists(
 				files = [
 					config['proj-pgdb-table'],
 					config['ptools-exe'],
-					e2p2_exe,
 					config['priam'],
-                                        config['authors-file'],
-                                        config['organizations-file'],
-                                        config['pmn-lisp-funs']
+					config['authors-file'],
+					config['organizations-file'],
+					config['pmn-lisp-funs']
 					],
 				dirs = [
 					config['proj-masters-dir'],
@@ -603,12 +667,13 @@ def check_pipeline_config(config):
 					config['savi'],
 					config['proj-common-dir'],
 					config['e2p2'],
-                                        config['authors-file'],
-                                        config['organizations-file'],
-                                        config['pmn-lisp-funs']
+					config['authors-file'],
+					config['organizations-file'],
+					config['pmn-lisp-funs']
 					],
 				os.R_OK,
-				f'specified in {configfilename}')
+				f'specified in {configfilename}',
+				ignore_missing = True)
 		passed &= check_access(
 				[
 					config['proj-masters-dir'],
@@ -620,14 +685,15 @@ def check_pipeline_config(config):
 					config['ptools-pgdbs'],
 					],
 				os.W_OK,
-				f'specified in {configfilename}')
-		passed &= check_access([config['ptools-exe'], e2p2_exe], os.X_OK, f'specified in {configfilename}')
+				f'specified in {configfilename}',
+				ignore_missing = True)
+		passed &= check_access([config['ptools-exe']], os.X_OK, f'specified in {configfilename}')
 	except KeyError as e:
 		stderr.write(f'Config file {configfilename} is missing required key {e.args[0]}\n')
 		passed = False
 	return passed
 
-re_taxid = re.compile('^[0-9]+$')
+re_taxid = re.compile(r'^[0-9]+$')
 def check_pgdb_table(table, config):
 	passed = True
 	cyc_set = set()
@@ -728,7 +794,7 @@ def as_lisp_symbol(l):
 	l = l.strip('|')
 	l = f'\'|{l}|'
 	return l
-whitespace = re.compile('\s+')
+whitespace = re.compile(r'\s+')
 class PathwayTools:
 	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 5):
 		this.pt_exe = exe

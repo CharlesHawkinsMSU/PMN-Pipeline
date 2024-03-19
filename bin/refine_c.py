@@ -23,6 +23,7 @@ def refine_c(config, orgtable, orglist):
     if xpra_path is not None:
         pmn.info('xpra found, using xpra')
         res = subprocess.run([xpra_path, 'start'], capture_output = True)
+        pmn.info(res.stderr)
         display = re_disp.search(res.stderr).group(1).decode()
         env = os.environ.copy()
         env['DISPLAY'] = display

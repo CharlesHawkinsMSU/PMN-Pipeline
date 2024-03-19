@@ -25,6 +25,7 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 	pmn.info(f'Generating common files in {common_dir}')
 	ptools.require_pgdbs(refs)
 	all_pwy_file_pre = path.join(common_dir, "all_pwy")
+	main_ref = refs[0]
 	date = time.strftime('%d-%b-%Y')
 	for ref in refs:
 		all_pwy_file = all_pwy_file_pre + '.' + ref.lower()
@@ -39,11 +40,11 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 	ec_numbers_cmd = f'(to-file-or-stream "{ec_names_file}" (format stream "# ENZYME nomenclature database Version: {date}~%")(print-alist stream (loop for ec in (get-class-all-instances "EC-Numbers") collect (list (gsv ec \'ec-id) (gsv ec \'common-name)))))'
 	ptools.send_cmd(ec_numbers_cmd)
 
-	pmn.info('Generating metacyc-rxn-name-mapping')
-	ptools.so('meta')
-	meta_names_file = path.join(common_dir, "metacyc-rxn-name-mapping")
+	pmn.info('Generating {main_ref}cyc-rxn-name-mapping')
+	ptools.so(main_ref)
+	ref_names_file = path.join(common_dir, "{main_ref}-rxn-name-mapping")
 	ptools.send_cmd(f'(setq eckb (find-kb \'ec-numbers))')
-	ptools.send_cmd(f'(to-file-or-stream "{meta_names_file}" (format stream "# ENZYME nomenclature database Version: #MetaCyc Version: ~%" (kb-version (current-kb)))(print-alist stream (loop for r in (get-class-all-instances "Reactions") for cn = (gsv r \'common-name) for name = (if cn cn (if (coercible-to-frame-p (setq ec (get-slot-value r \'ec-number)) :kb eckb) (get-slot-value ec \'common-name :kb eckb) nil)) when name collect (list (gfh r) name))))')
+	ptools.send_cmd(f'(to-file-or-stream "{ref_names_file}" (format stream "# ENZYME nomenclature database Version: #{main_ref}Cyc Version: ~%" (kb-version (current-kb)))(print-alist stream (loop for r in (get-class-all-instances "Reactions") for cn = (gsv r \'common-name) for name = (if cn cn (if (coercible-to-frame-p (setq ec (get-slot-value r \'ec-number)) :kb eckb) (get-slot-value ec \'common-name :kb eckb) nil)) when name collect (list (gfh r) name))))')
 
 		
 
@@ -60,9 +61,7 @@ def refine_prepare(config, table, org_list, ptools = None):
 		if not ptools:
 			ptools = pmn.PMNPathwayTools(config)
 		generate_common_files(config, ptools)
-		ptools.so('meta')
 		pt_vers = ptools.send_cmd('(ptools-version)').strip('"')
-
 
 		# Iterate over the species
 		for orgid in org_list:
@@ -70,6 +69,8 @@ def refine_prepare(config, table, org_list, ptools = None):
 			pmn.info(f'Preparing {orgid}')
 			org_entry = table[orgid]
 			year = org_entry['Citation Year']
+
+			refdb = org_entry['Reference DB']
 
 			pmn.info(f'Writing savi-comment for {orgid}')
 			org_common_dir = path.join(org_path, 'common')
@@ -116,6 +117,8 @@ super	PMNSP{year}:EV-COMP-HINF	<i>This superpathway was predicted to exist in th
 			pmn.info (f'Writing refine-a.master for {orgid}')
 			start_timestamp = org_entry.setdefault('START timestamp', 0)
 			end_timestamp = org_entry.setdefault('END timestamp', 99999999999)
+
+
 			refine_a_text = f'''# Master file for PMN release pipeline
 # Provides all the data needed for release the PGDB of a species
 #
@@ -161,7 +164,7 @@ s_enzrxn_citation	{org_entry["Enzrxn Citation"]}
 
 f_savi_comment	savi-comment
 f_enz_name	{org_entry["ENZ name file"]}
-f_enz_name_meta	{org_entry["RXN Map"]}
+f_rxn_name_map	{refdb}-rxn-name-mapping
 f_meta_link	{org_entry["PWY Metacyc"]}
 f_plant_link	{org_entry["PWY Plantcyc"]}
 
@@ -175,12 +178,11 @@ fs_new_enzrxns	s_pgdb-s_start_timestamp-s_end_timestamp-new-enzrxns
 lisp	(so 's_pgdb)	select organism
 lisp	(loop for p in '(fs_pwy_del) do (if (coercible-to-frame-p p) (delete-frame-and-dependents p) (format T "Warning: Frame ~A is in the list of frames to be deleted from ~ACYC but was not found in ~ACYC~%" p 's_pgdb 's_pgdb)))
 
-# import pathways from metacyc inferred by curator (this function does not import enzymes with the pathway)
-lisp	(so 'meta)
-lisp	(so 'plant)
+# import pathways from the reference DB inferred by curator (this function does not import enzymes with the pathway)
+{"lisp	(so 'meta)" if org_entry["Also MetaCyc"] else ""}
+lisp	(so '{refdb})
 lisp	(so 's_pgdb)
-lisp	(loop for pwy in '(fs_pwy_add) do (if (coercible-to-frame-p pwy :kb (find-org 'meta)) (import-pathways (list pwy) (find-org 'meta) (current-kb)) (if (coercible-to-frame-p pwy :kb (find-org 'plant)) (import-pathways (list pwy) (find-org 'plant) (current-kb)) (format t "Warning: Pathway ~A not found in MetaCyc or PlantCyc, will not be imported into ~ACYC~%" pwy 's_pgdb))))
-#lisp	(import-pathways '(fs_pwy_add) (find-kb 'metabase) (current-kb))
+lisp	(loop for pwy in '(fs_pwy_add) do (loop for ref-org in '({refdb}{" meta" if org_entry["Also MetaCyc"] else ""}) for ref-kb = (find-org ref-org) when (coercible-to-frame-p pwy :kb ref-kb) do (import-pathways (list pwy) ref-kb (find-org 's_pgdb)) and return ref-org finally (return nil)))
 
 # add curator |pmngroup| to PGDB
 lisp	(so 'ara)
@@ -221,13 +223,16 @@ perl	s_script_folder/savi_citations_and_comments.pl s_pgdb s_sp_name s_sp_folder
 perl	s_script_folder/e2p2_enzrxn_citations.pl s_pgdb s_enzrxn_citation s_start_timestamp s_end_timestamp
 
 # add/reload enzyme common name to enzrxns
-perl	s_script_folder/add_name_enzrxn_timestamp.pl s_pgdb s_cm_folder/f_enz_name s_cm_folder/f_enz_name_meta s_start_timestamp s_end_timestamp
+perl	s_script_folder/add_name_enzrxn_timestamp.pl s_pgdb s_cm_folder/f_enz_name s_cm_folder/f_rxn_name_map s_start_timestamp s_end_timestamp
 
 # add/reload sequence source (i.e. phytozome) DBLink to genes
 perl	s_script_folder/reload_dblinks_phytzome_protein.pl s_pgdb s_seq_source s_seq_source_acc
 
 # add/reload metacyc and plantcyc DBLink to pathways
-perl	s_script_folder/reloadPWYlinks2metacyc.plantcyc.pl s_pgdb s_cm_folder/f_meta_link s_cm_folder/f_plant_link
+#perl	s_script_folder/reloadPWYlinks2metacyc.plantcyc.pl s_pgdb s_cm_folder/f_meta_link s_cm_folder/f_plant_link
+lisp	(so 's_pgdb)
+lisp	(loop for p in (all-pathways) do (loop for (dbname . dbrest) in (gsvs p 'dblinks) when (or (eq dbname 'meta) (eq dbname '{refdb})) do (remove-slot-value p 'dblinks (cons dbname dbrest))) when (coercible-to-frame-p (gfh p) :kb (find-org '{refdb})) do (add-slot-value p 'dblinks (list '{refdb} (gfh p))) when (coercible-to-frame-p (gfh p) :kb (find-org 'meta)) do (add-slot-value p 'dblinks (list 'meta (gfh p))))
+
 
 # select the current PGDB
 lisp	(so 's_pgdb)

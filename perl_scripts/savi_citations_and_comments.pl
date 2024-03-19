@@ -15,7 +15,7 @@ This perlcyc script is part of
 # Output: logfile of the ptools lisp and perlcyc commands #
 ###########################################################
 
-  Usage: $0 <pgdb> <species-name> <species-folder> <savi-comment-file>
+  Usage: $0 <pgdb> <species-name> <species-folder> <savi-comment-file> [<reference database>]
 
 USAGE
 
@@ -33,8 +33,15 @@ use Env;
 if (@ARGV < 4) {
     die $usage;
 }
-
-my ($DB, $species, $folder, $file) = @ARGV;
+elsif (@ARGV == 4) {
+    my ($DB, $species, $folder, $file) = @ARGV;
+    my $refcyc = 'meta';
+    my $ucrefcyc = 'Meta';
+}
+else {
+    my ($DB, $species, $folder, $file, $refcyc) = @ARGV;
+    my $ucrefcyc = ucfirst($refcyc);
+}
 $species =~ s/_/ /;
 $folder =~ s!/$!!;
 
@@ -70,17 +77,17 @@ while (<IN>) {
 close IN;
 
 
-# read metacyc comments
+# read refcyc comments
 #
-my $cyc = perlcyc -> new("meta");
+my $cyc = perlcyc -> new($refcyc);
 
 $cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
-my %metacyc_comment;
-my @meta_pwy= $cyc -> all_pathways ();
+my %refcyc_comment;
+my @ref_pwy= $cyc -> all_pathways ();
 
-foreach my $meta_pwy (@meta_pwy) {
-    $metacyc_comment{$meta_pwy} = $cyc -> get_multiline_slot_value($meta_pwy, "comment");
+foreach my $ref_pwy (@ref_pwy) {
+    $refcyc_comment{$ref_pwy} = $cyc -> get_multiline_slot_value($ref_pwy, "comment");
 }
 
 $cyc -> close;
@@ -98,21 +105,21 @@ foreach my $pwy (@old_pwy) {
     my @citations = $cyc -> get_slot_values($pwy, "citations");
     my $comment_old = $comment;
     
-    # update metacyc comment
-    ## only update those with syntex "Summary from MetaCyc:"
-    ## and add metacyc comment if current comment is empty
-    if ($comment =~ /Summary from MetaCyc:/) {
-	if ($metacyc_comment{$pwy}) {
+    # update refcyc comment
+    ## only update those with syntex "Summary from <Ref>Cyc:"
+    ## and add refcyc comment if current comment is empty
+    if ($comment =~ /Summary from [A-Za-z0-9_-]+Cyc:/) {
+	if ($refcyc_comment{$pwy}) {
 	    # replace
-	    $comment =~ s/<i>Summary from MetaCyc:<\/i>.*/<i>Summary from MetaCyc:<\/i>\n\n$metacyc_comment{$pwy}/s;
+	    $comment =~ s/<i>Summary from [A-Za-z0-9_-]+Cyc:<\/i>.*/<i>Summary from ${ucrefcyc}Cyc:<\/i>\n\n$refcyc_comment{$pwy}/s;
 	#} else {
 	#    # delete
 	#    $comment =~ s/\n*<i>Summary from MetaCyc:<\/i>.*//;
 	}
     } elsif (length $comment < 1) {
         # add
-        if ($metacyc_comment{$pwy}) {
-             $comment = $metacyc_comment{$pwy};
+        if ($refcyc_comment{$pwy}) {
+             $comment = $refcyc_comment{$pwy};
         }
     }
     
@@ -147,8 +154,8 @@ foreach my $pwy (@old_pwy) {
 	    $comment =~ s/^<i>Supporting evidence for this pathway.*\[more info\]<\/A> <\/B>/$savi{$savi_pwy{$pwy}}{comment}/;
 	} else {
 	    # add
-	    ## other paragraphs to keep before metacyc summary
-	    $comment =~ s/^/$savi{$savi_pwy{$pwy}}{comment}\n\n<i>Summary from MetaCyc:<\/i>\n\n/;
+	    ## other paragraphs to keep before refcyc summary
+	    $comment =~ s/^/$savi{$savi_pwy{$pwy}}{comment}\n\n<i>Summary from ${ucrefcyc}Cyc:<\/i>\n\n/;
 	}
     } else {
 	# delete existing SAVI citations and comment
@@ -163,7 +170,7 @@ foreach my $pwy (@old_pwy) {
 	# remove old savi comment
 	if ($comment =~ /^<i>Supporting evidence for this pathway/) {
 	    # delete
-	    $comment =~ s/^<i>Supporting evidence for this pathway.*\[more info\]<\/A> <\/B>\n\n<i>Summary from MetaCyc:<\/i>\n\n//;
+	    $comment =~ s/^<i>Supporting evidence for this pathway.*\[more info\]<\/A> <\/B>\n\n<i>Summary from ${ucrefcyc}Cyc:<\/i>\n\n//;
 	}
 	
 	# output to not covered list

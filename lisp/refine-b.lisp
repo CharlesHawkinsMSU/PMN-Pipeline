@@ -111,7 +111,7 @@
 							thereis (coercible-to-frame-p taxon :kb ref-kb)))
 		t))))
 
-(defun refine-b (&key (kb (current-kb)) (refs '(plant meta)) choices dry-run?)
+(defun refine-b (&key (kb (current-kb)) (ref-kbs '(plant meta)) choices dry-run?)
   "Runs refine-b on the given orgid. Searches for enzymes and pathways in the reference kbs in :refs (by default metacyc and plantcyc) that are annotated to the organism of the pgdb :kb (default is the currently-selected organism). It then imports all of these frames from the reference kbs into the current kb. If a frame is in multiple of the reference kbs and is annotated to the species of :kb in all of them, then reference kb's toward the front of the :refs list are preferred as sources for import. Refine-b will attempt to find existing frames in :kb that match the imports and replace them with the improted frames. For pathways only a matching frame ID is checked. For enzymes, accession-1, accession-2, and synonyms in :kb are checked against accession-1 and accession-2 in :refs if a matching frame-ID is not found. Both the enzyme and its gene are checked for matches. The :choices argument lets you manually specify matching frames between :kb and :refs. It is commonly used when a gene can be matched between :kb and :refs but one or more of its proteins cannot or vice-versa (which would cause an error). It should be an alist from orgids to a list of pairs (or triplets) where the first value is the frame ID in the orgid and the second is the corresponding frame ID in the reference kb. A third value, if present, is the reference kb to draw from; otherwise the first kb in :refs that has the given frame ID will be used. Example: '((myorg (myorgg-22432 g-1391) (myorgg-3481-MONOMER g-1925-MONOMER plant) (myorgg-1119 g-5481 meta)) (someotherorg (soo-5879 g-3911))). Only frame-ids are accepted, so it is not necessary to specify if the mapping is for a gene or an enzyme. Entries in :choices override matches made based on accessions or synonyms, but not frame-id since that could create a conflict"
   (when (eq '|Multi-Organism-Groupings| (get-frame-handle (first (get-frame-direct-parents (as-orgid kb) :kb (as-kb kb)))))
 	(error "Refine-b should be run on a single-organism database; ~ACYC seems to be a multi-organism database~%" (as-orgid kb)))
@@ -119,14 +119,14 @@
 		 (org (as-orgid kb))
 		 (kb (as-kb kb))
 		 (matching-pathways
-		   (loop for ref in refs
+		   (loop for ref in ref-kbs
 				 collect (list (as-orgid ref)
 							   (loop for frame in (get-frames-for-taxon kb :ref ref :class "Pathways")
 									 unless (set-member frame taken-frames)
 									 do (add-to-set frame taken-frames)
 									 and collect frame))))
 		 (matching-proteins
-		   (loop for ref in refs
+		   (loop for ref in ref-kbs
 				 collect (list (as-orgid ref)
 							   (loop for frame in (get-frames-for-taxon kb :ref ref :class "Proteins")
 									 unless (set-member frame taken-frames)

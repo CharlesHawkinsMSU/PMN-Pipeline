@@ -15,7 +15,7 @@ This perlcyc script is part of
 # Output: logfile of the ptools lisp and perlcyc commands #
 ###########################################################
 
-  Usage: $0 <pgdb> <ec-name-mapping-file> <metacyc-rxn-mapping-file> <start-timestamp> <end-timestamp>
+  Usage: $0 <pgdb> <ec-name-mapping-file> <refcyc-rxn-mapping-file> <start-timestamp> <end-timestamp>
 
 USAGE
 

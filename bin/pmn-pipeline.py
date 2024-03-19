@@ -5,7 +5,7 @@ from sys import stdin, stdout, stderr
 import sys
 from os import path
 import os
-from shutil import copytree, copy2
+from shutil import copytree, copy2, rmtree
 import argparse as ap
 import subprocess
 import pmn
@@ -16,6 +16,7 @@ import create_authors
 import create_savi_citations
 import refine_c
 
+stages_nonsequenced = ['delete']
 stages = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'newversion', 'dump', 'dump-biopax', 'blastset']
 stages_needing_ptools = set(['create', 'dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset'])
 
@@ -197,7 +198,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None):
 			exit(1)
 		for org, entry in orgtable.items():
 			if path.exists(path.join(config['e2p2'], 'e2p2.py')):
-				arglist = [re.sub('\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
+				arglist = [re.sub(r'\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
 			else:
 				arglist = [entry['Initial PF File']+'.orxn.pf']
 			for arg, col in arg_col:
@@ -241,12 +242,33 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None):
 		print(pmn.blue_text('==Running Refine-B=='))
 		with pmn.PMNPathwayTools(config) as ptools:
 			for org in orglist:
+				entry = orgtable[org]
 				ptools.so(org)
-				ptools.send_cmd('(refine-b)')
+				refdbs = [entry['Reference DB']]
+				if entry['Also MetaCyc']:
+					refdbs += ['Meta']
+				ptools.send_cmd(f'(refine-b :ref-kbs \'({" ".join(refdbs)}))')
 				ptools.send_cmd('(save-kb)')
 	elif stage == 'refine-c':
 		print(pmn.blue_text('==Running Refine-C=='))
 		refine_c.refine_c(config, orgtable, orglist)
+	elif stage == 'delete':
+		print('The following PGDBs will be deleted:')
+		for org in orglist:
+			entry = orgtable[org]
+			print('  '+pmn.blue_text(f'{org}Cyc') + f' at {path.join(config["ptools-pgdbs"], org.lower())}cyc')
+		really_delete = pmn.ask_yesno(f'Really {pmn.red_text("delete")} (all versions of) these {len(orglist)} PGDBs (Y/n)? ', config['_y_flag'], True)
+		if really_delete:
+			print('Deleting PGDBs')
+			for org in orglist:
+				org_dir = path.join(config['ptools-pgdbs'], org.lower()+'cyc')
+				pmn.info(f'Deleting {org_dir}')
+				try:
+					rmtree(org_dir)
+				except OSError as e:
+					stderr.write(f'{org_dir}: {e.strerror}\n')
+		else:
+			print('PGDBs will not be deleted')
 	else:
 # Stage wasn't any of the internally-defined stages, so it must refer to a .master file
 		masterfile = stage
@@ -272,14 +294,25 @@ elif 'newproj' in args.stage:
 else:
 	print(f'Running stages: {", ".join(args.stage)}')
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
+	config['_y_flag'] = args.y
 	config['_filename'] = args.c
 	prev_stage = -1
 	stage_list = []
 	dash = False
 	for stage_req in args.stage:
 		if stage_req == '-':
+			if prev_stage in stages_nonsequenced:
+					stderr.write(f'Stage {prev_stage} cannot be part of a stage range because it is not in the standard stage sequece\n')
+					exit(1)
 			dash = True
 		else:
+			if stage_req in stages_nonsequenced:
+				if dash:
+					stderr.write(f'Stage {stage_req} cannot be part of a stage range because it is not in the standard stage sequece\n')
+					exit(1)
+				stage_list.append(stage_req)
+				prev_stage = stage_req
+				continue
 			try:
 				stage_n = stages.index(stage_req)
 			except ValueError:
@@ -290,15 +323,15 @@ else:
 					stderr.write(f'Stage range given in wrong order; {stage_req} comes before the stage you specified as the beginning of the range\n')
 					exit(1)
 				for i in range(prev_stage+1, stage_n+1):
-					stage_list.append(i)
+					stage_list.append(stages[i])
 				dash = False
 			else:
-				stage_list.append(stage_n)
+				stage_list.append(stages[stage_n])
 			prev_stage = stage_n
 	if dash:
 		stage_n = length(stages)
 		for i in range(prev_stage+1, stage_n):
-			stage_list.append(i)
+			stage_list.append(stages[i])
 	if stages_needing_ptools.intersection(args.stage):
 		if 'SLURM_JOB_ID' in os.environ:
 			sock_id = os.environ['SLURM_JOB_ID']
@@ -312,6 +345,6 @@ else:
 	else:
 		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
 		ptools = None
-	for stage_i in stage_list:
-		run_stage(stages[stage_i], config, orgtable, orglist, args.proj, ptools = ptools)
+	for stage in stage_list:
+		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools)
 		print()

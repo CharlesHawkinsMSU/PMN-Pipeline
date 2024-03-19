@@ -35,6 +35,7 @@ open (FILE, $input) || die "The File $input Could Not Be Found.\n";
 while (my $eachLine = <FILE>) {
     chomp ($eachLine);
     $metacyc{$eachLine}="";
+    print "meta has $eachLine\n";
 }
 close FILE;
 
@@ -56,14 +57,17 @@ $cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
 
 my @pwy = $cyc -> all_pathways ();
 foreach my $pwy (@pwy) {
+    print "$pwy\n";
     foreach my $db (@DBS_TO_DELETE){
         $cyc->remove_dblink($pwy, $db);
     }
     if (exists $metacyc{$pwy}) {
 	$cyc -> add_slot_value ($pwy, "dblinks", "(METACYC \"$pwy\")"); 
+	print "meta: $pwy\n";
     }
     if (exists $plantcyc{$pwy}) {
 	$cyc -> add_slot_value ($pwy, "dblinks", "(PLANTCYC \"$pwy\")"); 
+	print "plant: $pwy\n";
     }   
 }
 $cyc -> close();
