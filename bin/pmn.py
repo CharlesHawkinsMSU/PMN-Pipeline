@@ -803,6 +803,7 @@ class PathwayTools:
 			args += ['-api']
 		if '-lisp' not in args:
 			args += ['-lisp']
+		args += ['-no-patch-download']
 		this.pt_args = args
 		cmd = [exe] + args
 		this.pt_cmdline = ' '.join(cmd)
