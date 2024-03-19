@@ -804,17 +804,20 @@ class PathwayTools:
 		if '-lisp' not in args:
 			args += ['-lisp']
 		args += ['-no-patch-download']
+		# Under Singularity, environment variables aren't making it to pathway tools for some reason, so as a workaround we will set the socket path and tell it to start the api daemon manually using -eval. Also, there is an apparent bug in ptools 27.0 where spaces are not accepted in an -eval statement (it treats them as if they were EOF markers and stops reading), so as another workaround we use newlines instead
+		args += ['-eval', f'(progn\n(setf\n*socket-pathname*\n"{socket}")(start-external-access-daemon))']
 		this.pt_args = args
 		cmd = [exe] + args
 		this.pt_cmdline = ' '.join(cmd)
 		if os.path.exists(socket):
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
-		pt_env = os.environ.copy()
-		pt_env.update(env or {})
-		pt_env['PTOOLS-ACCESS-SOCKET'] = socket
+		#pt_env = os.environ.copy()
+		#pt_env.update(env or {})
+		#pt_env['PTOOLS-ACCESS-SOCKET'] = socket
+
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = pt_env)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL)
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
