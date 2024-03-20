@@ -252,7 +252,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None):
 			ptools.send_cmd('(save-kb)')
 	elif stage == 'refine-c':
 		print(pmn.blue_text('==Running Refine-C=='))
-		refine_c.refine_c(config, orgtable, orglist)
+		refine_c.refine_c(config, orgtable, orglist, ptools)
 	elif stage == 'delete':
 		print('The following PGDBs will be deleted:')
 		for org in orglist:
@@ -342,7 +342,8 @@ else:
 			sock_id = os.getpid()
 		sock_name = path.join(config['proj-sock-dir'], f'socket-{sock_id}')
 		pmn.info(f'Starting Pathway Tools using socket {sock_name}')
-		ptools = pmn.PMNPathwayTools(config, socket = sock_name)
+		running_refine_c = 'refine-c' in stage_list
+		ptools = pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], xpra = running_refine_c)
 	else:
 		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
 		ptools = None

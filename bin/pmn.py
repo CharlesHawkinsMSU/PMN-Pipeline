@@ -749,6 +749,19 @@ def check_parallelism(config):
 			passed = False
 	return passed
 
+re_disp = re.compile(b'Actual display used: (:[0-9]+)')
+def start_xpra():
+	xpra_path = shutil.which('xpra')
+	if xpra_path is not None:
+		info('xpra found, using xpra')
+		res = subprocess.run([xpra_path, 'start'], capture_output = True)
+		info(res.stderr)
+		display = re_disp.search(res.stderr).group(1).decode()
+		return xpra_path, display
+	else:
+		return None, None
+	
+
 # Sends a message via the given unix socket, waits for a reply, then returns that reply. Used by send_ptools_cmd()
 def socket_msg(cmd, socket_path):
 	s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -796,7 +809,7 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile(r'\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30, xpra = False):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-lisp' not in args:
@@ -810,12 +823,21 @@ class PathwayTools:
 		if os.path.exists(socket):
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
+		pt_env = os.environ.copy()
+		if xpra:
+			this.xpra_path, this.xpra_display = start_xpra()
+			if this.xpra_display:
+				pt_env['DISPLAY'] = this.xpra_display
+		else:
+			this.xpra_path, this.xpra_display = None,None
+		if env:
+			pt_env.update(env)
 		#pt_env = os.environ.copy()
 		#pt_env.update(env or {})
 		#pt_env['PTOOLS-ACCESS-SOCKET'] = socket
 
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = pt_env)
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
@@ -878,6 +900,9 @@ class PathwayTools:
 				else:
 					stderr.write(f'Error: Pathway Tools has not responded to the kill signal for {this.timeout} seconds. You will have to terminate the process manually. Process ID is {this.pt_proc.pid}\n')
 		info('Pathway Tools exited')
+		if this.xpra_path:
+			info('Stopping xpra')
+			subprocess.run([this.xpra_path, 'stop', this.xpra_display])
 	def __del__(this):
 		info(f'Pathway Tools connection object for {this.pt_proc.pid} is being deallocated, making sure the ptools instance has quit')
 		this.quit_ptools()
@@ -886,16 +911,12 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], socket = None, timeout = 30, env = None, load_pmn_funs = True):
+	def __init__(self, config, args = [], socket = None, timeout = 30, env = None, load_pmn_funs = True, xpra = False):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
-#		if load_pmn_funs:
-#			args_for_super = ['-load', pmn_lisp] + args
-#		else:
-#			args_for_super = args
 		if socket is None:
 			socket = config['ptools-socket']
-		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout)
+		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout, xpra = xpra)
 		self.send_cmd(f'(load "{pmn_lisp}")')
 	def require_pgdbs(self, orglist):
 		if not isinstance(orglist, list):
