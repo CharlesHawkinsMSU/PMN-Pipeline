@@ -688,6 +688,19 @@ def check_pipeline_config(config):
 				f'specified in {configfilename}',
 				ignore_missing = True)
 		passed &= check_access([config['ptools-exe']], os.X_OK, f'specified in {configfilename}')
+		xserver = config.setdefault('x-server', None)
+		if xserver == 'xpra':
+			if shutil.which('xpra') is None:
+				stderr.write(f'Config option x-server in {configfilename} is set to "xpra", but xpra was not found in $PATH\n')
+				passed = False
+		elif xserver == 'xvfb':
+			if shutil.which('Xvfb') is None:
+				stderr.write(f'Config option x-server in {configfilename} is set to "xvfb", but Xvfb was not found in $PATH\n')
+				passed = False
+		elif xserver is not None and xserver != 'external':
+			srderr.write(f'Config option x-server in {configfilename} is set to "{xserver}, which is not recognized (valid values are external, xpra, or xvfb)\n')
+			passed = False
+
 	except KeyError as e:
 		stderr.write(f'Config file {configfilename} is missing required key {e.args[0]}\n')
 		passed = False
@@ -759,6 +772,19 @@ def start_xpra():
 		display = re_disp.search(res.stderr).group(1).decode()
 		return xpra_path, display
 	else:
+		info('xpra not found')
+		return None, None
+
+def start_xvfb():
+	xvfb_path = shutil.which('Xvfb')
+	if xvfb_path is not None:
+		info(f'Xvfb found at {xvfb_path}, starting')
+		(r, w) = os.pipe()
+		proc = subprocess.Popen([xvfb_path, '-displayfd', str(w)], pass_fds = [w])
+		display = ':'+os.read(r, 128).strip().decode()
+		return proc, display
+	else:
+		info('Xvfb not found')
 		return None, None
 	
 
@@ -809,7 +835,7 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile(r'\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30, xpra = False):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30, x11 = None):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-lisp' not in args:
@@ -824,12 +850,21 @@ class PathwayTools:
 			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
 			raise FileExistsError(socket)
 		pt_env = os.environ.copy()
-		if xpra:
-			this.xpra_path, this.xpra_display = start_xpra()
-			if this.xpra_display:
-				pt_env['DISPLAY'] = this.xpra_display
+		if x11 == 'xpra':
+			info('Starting xpra')
+			this.xpra_path, this.display = start_xpra()
+			this.xvfb_proc = None
+		elif x11 == 'xvfb':
+			info('Starting Xvfb')
+			this.xvfb_proc, this.display = start_xvfb()
+			this.xpra_path = None
 		else:
-			this.xpra_path, this.xpra_display = None,None
+			this.xvfb_proc, this.xpra_path, this.display = None,None,None
+		if this.display:
+			info(f'X11 display is {this.display}')
+			pt_env['DISPLAY'] = this.display
+		else:
+			info('no X11 display found, xserver start may have failed')
 		if env:
 			pt_env.update(env)
 		#pt_env = os.environ.copy()
@@ -837,6 +872,7 @@ class PathwayTools:
 		#pt_env['PTOOLS-ACCESS-SOCKET'] = socket
 
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
+		info(f'Env is {pt_env}')
 		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = pt_env)
 		this.timeout = timeout
 		start_time = time.monotonic()
@@ -902,7 +938,9 @@ class PathwayTools:
 		info('Pathway Tools exited')
 		if this.xpra_path:
 			info('Stopping xpra')
-			subprocess.run([this.xpra_path, 'stop', this.xpra_display])
+			subprocess.run([this.xpra_path, 'stop', this.display])
+		if this.xvfb_proc is not None:
+			this.xvfb_proc.terminate()
 	def __del__(this):
 		info(f'Pathway Tools connection object for {this.pt_proc.pid} is being deallocated, making sure the ptools instance has quit')
 		this.quit_ptools()
@@ -911,12 +949,12 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], socket = None, timeout = 30, env = None, load_pmn_funs = True, xpra = False):
+	def __init__(self, config, args = [], socket = None, timeout = 30, env = None, load_pmn_funs = True, x11 = None):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
 		if socket is None:
 			socket = config['ptools-socket']
-		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout, xpra = xpra)
+		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout, x11 = x11)
 		self.send_cmd(f'(load "{pmn_lisp}")')
 	def require_pgdbs(self, orglist):
 		if not isinstance(orglist, list):

@@ -343,7 +343,7 @@ else:
 		sock_name = path.join(config['proj-sock-dir'], f'socket-{sock_id}')
 		pmn.info(f'Starting Pathway Tools using socket {sock_name}')
 		running_refine_c = 'refine-c' in stage_list
-		ptools = pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], xpra = running_refine_c)
+		ptools = pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], x11 = config['x-server'] if running_refine_c else None)
 	else:
 		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
 		ptools = None
