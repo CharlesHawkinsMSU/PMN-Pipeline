@@ -46,6 +46,9 @@ savi = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/savi/curren
 # SAVI common files directory
 proj-common-dir = common
 
+# Directory to save logs
+proj-log-dir = logs
+
 # Path to where e2p2 is installed
 e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
 

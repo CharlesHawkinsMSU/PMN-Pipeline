@@ -36,7 +36,7 @@ def savi_prepare(config, table, org_list = None, proj = '.', old_pgdbs = None):
 			try:
 				org_entry = table[orgid]
 			except KeyError:
-				stderr.write(f'Error: Orgid {orgid} not found in {config["pgdb-table"]}\n')
+				pmn.error(f'Orgid {orgid} not found in {config["pgdb-table"]}')
 				exit(1)
 
 			# Find the PGDB version to use
@@ -64,7 +64,7 @@ def savi_prepare(config, table, org_list = None, proj = '.', old_pgdbs = None):
 				shutil.copy(path.join(pgdb_dat_path, 'reactions.dat'), org_in_dir)
 				shutil.copy(path.join(pgdb_dat_path, 'proteins.dat'), org_in_dir)
 			except FileNotFoundError as e:
-				stderr.write(f'{e.filename}: File not found. Did you remember to run pmn-pipeline dump?\n')
+				pmn.error(f'{e.filename}: File not found. Did you remember to run pmn-pipeline dump?')
 				exit(1)
 
 			# Fix the species.dat file so it includes the NCBI taxon ID
@@ -80,10 +80,10 @@ def savi_prepare(config, table, org_list = None, proj = '.', old_pgdbs = None):
 				shutil.copy(path.join(old_pgdb_path, old_org_version, 'data', 'pathways.dat'), path.join(org_in_dir, 'pathways_pgdb.dat'))
 			
 	except KeyError as e:
-		stderr.write(f'{args.c}: Required variable {e.args[0]} not found in config file')
+		pmn.error(f'{args.c}: Required variable {e.args[0]} not found in config file')
 		exit(1)
 	except IOError as e:
-		stderr.write(f'{e.filename}: {e.strerror}\n')
+		pmn.error(f'{e.filename}: {e.strerror}')
 		exit(1)
 if __name__ == "__main__":
     main()

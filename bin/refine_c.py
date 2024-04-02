@@ -2,11 +2,7 @@
 
 from sys import stdin, stdout, stderr
 import argparse as ap
-import re
 import pmn
-import subprocess
-import shutil
-import os
 
 def main():
     par = ap.ArgumentParser(description = 'Runs refine-c on the PMN pipeline')
@@ -21,7 +17,7 @@ def refine_c(config, orgtable, orglist, ptools = None):
     if not ptools:
         ptools = pmn.PMNPathwayTools(config, args = ['-www'])
     pt_disp = ptools.send_cmd('(sys:getenv "DISPLAY")')
-    pmn.info(f'Display is {pt_disp}')
+    pmn.info(f'Ptools reports that DISPLAY is {pt_disp}')
     for org in orglist:
         org_entry = orgtable[org]
         pmn.info(f'==Running checks for {org}Cyc==')

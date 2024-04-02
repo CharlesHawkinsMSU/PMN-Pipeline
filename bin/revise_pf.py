@@ -10,7 +10,7 @@ def parse_input_map(mapfile):
     try:
             infile = open(mapfile, 'r')
     except IOError as e:
-            stderr.write('%s: %s\n'%(mapfile, e.strerror))
+            pmn.error('%s: %s\n'%(mapfile, e.strerror))
             exit(1)
     prot2gene = {}
     gene2id = {}
@@ -22,7 +22,7 @@ def parse_input_map(mapfile):
         fields = line.split('\t')
         l = len(fields)
         if l != 2 and l != 4:
-            stderr.write('Warning: line "%s" in %s has %s fields, expected 2 or 4. Ignoring this line.\n'%(line, mapfile, l))
+            pmn.warn('line "%s" in %s has %s fields, expected 2 or 4. Ignoring this line.\n'%(line, mapfile, l))
             continue
         prot2gene[fields[1]] = fields[0]
         if l == 4:
@@ -40,7 +40,7 @@ def parse_fasta(fafile, gene_key, sep, kv_sep):
     try:
         infile = open(fafile, 'r')
     except IOError as e:
-        stderr.write('%s: %s\n'%fafile, e.strerror)
+        pmn.error('%s: %s\n'%fafile, e.strerror)
         exit(1)
     prot2gene = {}
     with infile:
@@ -70,7 +70,7 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
             try:
                     infile = open(gfffile, 'r')
             except IOError as e:
-                    stderr.write('%s: %s\n'%(gfffile, e.strerror))
+                    pmn.error('%s: %s\n'%(gfffile, e.strerror))
                     exit(1)
     gff_entries = {}
     proteins = {}
@@ -88,7 +88,7 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
 
             # Make sure we have at least 9 tab-separated fields
             if len(fields) < 9:
-                    stderr.write('Warning: Line %s of %s has only %s fields, expected at least 9\n'%(line_n, gfffile, len(fields)))
+                    pmn.warn('Line %s of %s has only %s fields, expected at least 9\n'%(line_n, gfffile, len(fields)))
                     continue
 
             # Parse the attribute field (field 8) into a dictionary
@@ -96,7 +96,7 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
 
             # Make sure the key attribute (as specified with -k) is present for this entry
             if ref_key not in attrs:
-                    #stderr.write('Warning: Line %s has no attribute %s, which is supposed to be the key as specified by the -k option\n'%(line_n, ref_key))
+                    #pmn.warn('Line %s has no attribute %s, which is supposed to be the key as specified by the -k option\n'%(line_n, ref_key))
                     continue
             key = attrs[ref_key]
 
@@ -105,7 +105,7 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
 
             if fields[2] == prot_feature:	# This is one of the protein entries; save it and its name
                     if prot_name not in attrs:
-                            stderr.write('Warning: Protein %s has no attribute %s, which is supposed to be the protein name according to the -p option. The protein will therefore not be included in the output\n'%(key, prot_name))
+                            pmn.warn('Protein %s has no attribute %s, which is supposed to be the protein name according to the -p option. The protein will therefore not be included in the output\n'%(key, prot_name))
                             continue
                     proteins[key] = attrs[prot_name]
 
@@ -119,7 +119,7 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
             for path_entry in path:
                     gene = gff_entries[gene]
                     if path_entry not in gene:
-                            stderr.write('Path entry %s not found in gff entry %s while looking for the gene for protein %s\n'%(path_entry, gene[ref_key], protein))
+                            pmn.warn('Path entry %s not found in gff entry %s while looking for the gene for protein %s\n'%(path_entry, gene[ref_key], protein))
                             gene = None
                             break
                     gene = gene[path_entry]
@@ -144,7 +144,7 @@ def write_map(prot2gene, gene2id, prot2id, mapfile):
             try:
                     outfile = open(mapfile, 'w')
             except IOError as e:
-                    stderr.write('%s: %s\n'%(mapfile, e.strerror))
+                    pmn.error('%s: %s\n'%(mapfile, e.strerror))
                     exit(1)
     for prot, gene in prot2gene.items():
         try:
@@ -160,12 +160,12 @@ def process_pf(pfname, rpfname, prot2gene, gene2id = {}, prot2id = {}, numeric_p
     try:
         pffile = open(pfname, 'r')
     except IOError as e:
-        stderr.write('%s: %s\n'%(pffile, e.strerror))
+        pmn.error('%s: %s\n'%(pffile, e.strerror))
         exit(1)
     try:
         rpffile = open(rpfname, 'w')
     except IOError as e:
-        stderr.write('%s: %s\n'%(rpffile, e.strerror))
+        pmn.error('%s: %s\n'%(rpffile, e.strerror))
         exit(1)
 
     # List of ids that are already taken (based on the input mapfile). When assigning new numeric IDs we need to make sure not to re-use an ID that's already taken
@@ -187,14 +187,14 @@ def process_pf(pfname, rpfname, prot2gene, gene2id = {}, prot2id = {}, numeric_p
                 try:
                     prot_acc = line.split('\t')[1]
                 except IndexError:
-                    stderr.write('Warning: ID line "%s" in %s has only one field. Ignoring this protein.\n'%(line, pfname))
+                    pmn.warn('ID line "%s" in %s has only one field. Ignoring this protein.\n'%(line, pfname))
                     rpffile.write(line + '\n')
                     continue
                 # The input pf file will have protein accessions in the ID field; first we need to look up the gene ID for that protein (from the input map and/or gff file)
                 try:
                     gene_acc = prot2gene[prot_acc]
                 except KeyError:
-                    stderr.write('Warning: Protein %s not found in gff or mapping file. This protein will not be mapped\n'%prot_acc)
+                    pmn.warn('Protein %s not found in gff or mapping file. This protein will not be mapped\n'%prot_acc)
                     rpffile.write(line + '\n')
                     continue
                 # First, check if this gene already has an ID in the input map file; if so just use that
@@ -262,7 +262,7 @@ def get_pf_args(arglist = None):
     else:
         args = par.parse_args()
     if not (args.f or args.ifa or args.im):
-        stderr.write('Must specify at least one of: -ig, -if, -im\n')
+        pmn.error('Must specify at least one of: -ig, -if, -im\n')
         exit(1)
     return args
 

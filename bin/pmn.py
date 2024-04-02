@@ -19,6 +19,8 @@ import re
 import socket
 import shutil
 import time
+import threading
+import fcntl
 
 
 if __name__ == "__main__":
@@ -29,14 +31,22 @@ esc = '\x1b'
 csi = esc + '['
 def sgr(n):
 	return csi + str(n) + 'm'
-def with_sgr(string, n):
-	return sgr(n)+string+sgr(0)
+def with_sgr(string, n, reset = 0):
+	return sgr(n)+string+sgr(reset)
 def red_text(string):
-	return with_sgr(string, 31)
+	return with_sgr(string, 31, 39)
 def green_text(string):
-	return with_sgr(string, 32)
+	return with_sgr(string, 32, 39)
 def blue_text(string):
-	return with_sgr(string, 34)
+	return with_sgr(string, 34, 39)
+def yellow_text(string):
+	return with_sgr(string, 33, 39)
+def purple_text(string):
+	return with_sgr(string, 35, 39)
+def gray_text(string):
+	return with_sgr(string, 37, 39)
+def bold_text(string):
+	return with_sgr(string, 1, 22)
 
 # Converts a string to a boolean, where the string can be Y/yes/1/t/True/etc. for True or n/NO/0/F/false/etc. for False. Raises a ValueError if it doesn't recognize the string as a boolean. The second argument indicates the value to return in the case of an empty string; it should be True, False, or None (meaning raise a ValueError). Used when reading boolean columns from the PGDB table and boolean variables from the PGDB config file
 def fuzzy_bool(bool_str, accept_empty_as = False):
@@ -53,7 +63,7 @@ def fuzzy_bool(bool_str, accept_empty_as = False):
 	else:
 		raise ValueError(bool_str)
 
-# When given a dictionary that maps from strings to strings, converts the selected keys' values to bools using fuzzy_bool(). If keys is None, it converts all the keys in the dict. Set if_not_found to control what happens when a requested key isn't found; it should be "ignore" (leave key unset), "true" (put in key with value True), "false" (put in key with value false), or "error" (raise a KeyError). Set if_empty to control what happens for an empty string; it is passed to fuzzy_bool as accept_empty_as
+# When given a dictionary that maps from strings to strings, converts the selected keys' values to bools using fuzzy_bool(). If keys is None, it converts all the keys in the dict. Set if_not_found to control what happens when a requested key isn't found; it should be "ignore" (leave key unset), "true" (put in key with value True), "false" (put in key with value False), or "error" (raise a KeyError). Set if_empty to control what happens for an empty string; it is passed to fuzzy_bool as accept_empty_as
 def fuzzy_bool_dict(d, keys = None, if_not_found = "false", if_empty = False):
 	if keys is None:
 		keys = d.keys()
@@ -82,7 +92,7 @@ def openfile(where, mode = 'r'):
 		try:
 			return open(where, mode)
 		except IOError as e:
-			stderr.write(f'{where}: {e.strerror}\n')
+			error(f'{where}: {e.strerror}')
 			exit(1)
 	else:
 		return where
@@ -94,8 +104,10 @@ def set_from_values(d):
 		s.add(val)
 	return s
 
+# Ask the user a yes/no question and get their response, returning it as a bool. Pass in args.y as y_flag so that the question will be bypassed and assumed True if the command was run with -y. If it doesn't understand the user's response as a boolean (using fuzzy_bool), it will ask again, unless unknown_is_no is True, in which case it will return False on an unrecognzed response
 def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 	if y_flag:
+		print(prompt + 'Yes')
 		return True
 	while True:
 		try:
@@ -105,7 +117,7 @@ def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 			if unknown_is_no:
 				return False
 			else:
-				stderr.write('Please answer Yes, No, y, n, T, false, 1, 0, etc\n')
+				error('Please answer Yes, No, y, n, T, false, 1, 0, etc')
 		except KeyboardInterrupt:
 			return False
 
@@ -125,7 +137,7 @@ def tsv_to_dict(file, sep = '\t'):
 		try:
 			infile = open(file, "r")
 		except IOError as e:
-			stderr.write("%s: %s\n"%(file, e.strerror))
+			error("%s: %s"%(file, e.strerror))
 	else:
 		infile = file
 	d = {}
@@ -221,7 +233,7 @@ class GFF_dict(dict):
 
 			# Make sure we have at least 9 tab-separated fields
 			if len(fields) < 9:
-					stderr.write('Warning: Line %s of %s has only %s fields, expected at least 9\n'%(line_n, gff_file, len(fields)))
+					warn('Line %s of %s has only %s fields, expected at least 9'%(line_n, gff_file, len(fields)))
 					continue
 
 			# Parse the attribute field (field 8) into a dictionary
@@ -242,7 +254,7 @@ class GFF_dict(dict):
 			try:
 				entry.parent = self[parent_id]
 			except KeyError:
-				stderr.write(f'Warning: Feature {key} refers to feature {parent} as its parent, but no such feature exists in the file\n')
+				warn(f'Feature {key} refers to feature {parent} as its parent, but no such feature exists in the file')
 				continue
 		self.parents_added = True
 
@@ -256,7 +268,7 @@ class GFF_dict(dict):
 			try:
 				self[parent_id].children.append(entry)
 			except KeyError:
-				stderr.write(f'Warning: Feature {key} refers to feature {parent} as its parent, but no such feature exists in the file\n')
+				warn(f'Feature {key} refers to feature {parent} as its parent, but no such feature exists in the file')
 				continue
 		self.children_added = True
 
@@ -271,10 +283,10 @@ def read_var_val_file(filename):
 		try:
 			(key, val) = [s.strip() for s in line.split('=', 1)]
 			if key in d:
-				stderr.write(f'Warning: In file {file.name}, variable {var} is defined more than once\n')
+				warn(f'In file {file.name}, variable {var} is defined more than once')
 			d[key] = val
 		except ValueError:
-			stderr.write(f'Warning: line not recognized in {file.name}:\n{line}\n')
+			warn(f'line not recognized in {file.name}:\n{line}')
 	return d
 
 # Reads in the pgdb-pipeline.txt config file for the PMN pipeline, and fills in default values as needed. Returns a dictionary, generally passed as <config> to other functions
@@ -320,14 +332,14 @@ def read_table_file(filename, key_col):
 				if val:
 					entry[header[i]] = val
 			except IndexError:
-				stderr.write(f'{tablefile.name}: Line {line_n} has more fields than the header\n')
+				error(f'{tablefile.name}: Line {line_n} has more fields than the header')
 				exit(1)
 		table[entry[key_col]] = entry
 	return table
 
 pf_re = re.compile(r'(.pf)?$')
 orxn_pf = re.compile(r'\.orxn\.pf$')
-# Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used.
+# Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used. Also returns a dict from indexes to orgids
 def read_pgdb_table(tables, config = None):
 	# proj_dirs enumerates project directories, with a tuple that includes the key in the config file specifying the directory and the column in the table file that contains a file that should be located there
 	proj_dirs = [
@@ -342,6 +354,8 @@ def read_pgdb_table(tables, config = None):
 	pgdb_dict = {}
 	preset_dict = {}
 	line_n = -1
+	index = 1
+	index_table = {}
 	try:
 		for table in tables:
 			tablefile = openfile(table)
@@ -359,26 +373,24 @@ def read_pgdb_table(tables, config = None):
 						if val:
 							entry[header[i]] = val
 					except IndexError:
-						stderr.write(f'{tablefile.name}: Line {line_n} has more fields than the header\n')
+						error(f'{tablefile.name}: Line {line_n} has more fields than the header')
 						exit(1)
-				#print(f'Entry: {entry}')
 				# Look for any presets in the Presets column and apply
 				try:
 					presets = entry['Presets']
 					if not presets.startswith('/'):
-						stderr.write(f'{tablefile.name}, line {line_n}: Preset names should start with a "/"\n')
+						error(f'{tablefile.name}, line {line_n}: Preset names should start with a "/"')
 						exit(1)
 					presets = presets.split('/')[1:]
 					if 'default' in preset_dict:
 						presets += ['default']
 				except KeyError:
 					presets = ['default'] if 'default' in preset_dict else []
-				#print(f'Presets for {entry["Database ID"]}: {presets}')
 				for preset in presets:
 					try:
 						preset_entry = preset_dict[preset]
 					except KeyError:
-						stderr.write(f'{tablefile.name}, line {line_n}: Reference to non-existent preset "{preset}"\n')
+						error(f'{tablefile.name}, line {line_n}: Reference to non-existent preset "{preset}"')
 						exit(1)
 					for key, val in preset_entry.items():
 						if key not in entry or not entry[key]:
@@ -386,11 +398,13 @@ def read_pgdb_table(tables, config = None):
 
 				# Operations to only be performed on actual PGDBs, not on preset definitions
 				if not entry['Database ID'].startswith('/'):
+					entry['_index'] = index
 					# Fill in computed fields
+
 					entry.setdefault('Database Name', entry['Database ID']+'Cyc')
 					species_words = entry['Species Name'].split(' ')
 					if len(species_words) < 2:
-						stderr.write(f'{tablefile.name}, line {line_n}: Species name "{entry["Species Name"]}" should be at least two words long\n')
+						error(f'{tablefile.name}, line {line_n}: Species name "{entry["Species Name"]}" should be at least two words long')
 						exit(1)
 
 					entry.setdefault('ID/Name', species_words[0][0]+species_words[1])
@@ -443,17 +457,17 @@ def read_pgdb_table(tables, config = None):
 				# Finished building this entry, put it into the appropriate dictionary (preset_dict or pgdb_dict depending on whether it's a preset definition or an actual pgdb)
 				orgid = entry['Database ID'] 
 				if orgid.startswith('/'):
-					#print(f'Preset {orgid}')
 					preset_dict[orgid[1:]] = entry
 				else:
-					#print(f'Non-preset {orgid}')
 					pgdb_dict[orgid] = entry
+					index_table[index] = orgid
+					index += 1
 				line_n += 1
 
 	except KeyError as e:
-		stderr.write(f'{tablefile.name}: Column {e.args[0]} is required for all entries but is missing from line {line_n}\n')
+		error(f'{tablefile.name}: Column {e.args[0]} is required for all entries but is missing from line {line_n}')
 		exit(1)
-	return pgdb_dict
+	return pgdb_dict, index_table
 
 def write_pgdb_tablefile(orgtable, orglist, path, fields = None):
 	if fields is None:
@@ -475,22 +489,90 @@ def add_standard_pmn_args(par, action = 'operated on'):
 	par.add_argument('-o', '--orgids', help = f'A comma-separated list of orgids to be {action}. If not given, all organisms in the pgdb-table will be {action}', dest = 'o')
 	par.add_argument('-c', '--config', default='pgdb-pipeline.txt', help = 'Config file with general (non-organism-specific) pipeline parameters.', dest = 'c')
 	par.add_argument('-t', '--pgdb-table', help = 'Table file of PGDBs. If not given the filename will be read from the config file', dest = 't')
-	par.add_argument('-v', '--verbose', action = 'store_true', help = 'Print info messages while running', dest = 'v')
+	par.add_argument('-v', '--verbose', action = 'store_true', help = 'Print info messages to stdout while running. Info messages are always included in the logfile regardless', dest = 'v')
+	par.add_argument('--timestamps', action = 'store_true', help = 'Print timestamps for all messages to stdout. Timestamps are always included in the logfile regardless', dest = 'timestamps')
 	par.add_argument('-p', '--proj', default = '.', help = 'Project directory. Defaults to the current working directory', dest = 'proj')
 	par.add_argument('-y', '--yes', action = 'store_true', help = 'Assume yes to all prompts', dest = 'y')
 
 verbose = False
-def info(msg, logfile = None):
+logfile = None
+time_fmt = '%F %T'
+time_always = False
+def message(msg):
+	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {msg}'
+	print(tmsg if time_always else msg)
+	if logfile:
+		print(tmsg, file = logfile)
+
+def info(msg):
+	imsg = f'{bold_text(blue_text("Info"))}: {msg}'
+	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
 	if verbose:
-		imsg = f'Info: {msg}'
-		print(imsg)
+		print(tmsg if time_always else imsg)
+	if logfile:
+		print(tmsg, file = logfile)
+
+def error(msg):
+	imsg = f'{bold_text(red_text("Error"))}: {msg}'
+	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
+	print(tmsg if time_always else imsg)
+	if logfile:
+		print(tmsg, file = logfile)
+
+def warn(msg):
+	imsg = f'{bold_text(yellow_text("Warning"))}: {msg}'
+	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
+	print(tmsg if time_always else imsg)
+	if logfile:
+		print(tmsg, file = logfile)
+
+newline_re = re.compile(r'\r?\n')
+def subproc_msg(output, procname = "SubCmd"):
+	for msg in newline_re.split(output.decode().rstrip()):
+		imsg = f'{bold_text(purple_text(procname))}: {msg}'
+		tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
+		print(tmsg if time_always else imsg)
 		if logfile:
-			print(imsg, file = logfile)
-# Read the pmn config files in the standard way and get the list of organsims to operate on. <args> should be a results of parsing args with a parser that has had add_standard_pmn_args() called on it. Returns a tuple of the config, the table, and the org list
+			print(tmsg, file = logfile)
+
+# Gets a unique ID for this run. Bases it on the process ID unless we're running in SLURM, in which case it's based on the job ID
+def get_run_id():
+	# Different versions of SLURM use either $SLURM_JOB_ID or $SLURM_JOBID, so we need to check both
+	try:
+		return 's-' + os.environ['SLURM_JOB_ID']
+	except KeyError:
+		try:
+			return 's-' + os.environ['SLURM_JOBID']
+		except KeyError:
+			return 'p-' + str(os.getpid())
+
+def open_logfile(config):
+	global logfile
+	try:
+		logfilename = path.join(config['proj-logs-dir'], get_run_id() + '.log')
+		differentiator = 0
+		while path.exists(logfilename):
+			differentiator += 1
+			logfilename = path.join(config['proj-logs-dir'], get_run_id() + '-' + differentiator + '.log')
+		logfile = open(logfilename, 'w')
+		open_msg = f'Logfile {logfilename} opened at {time.strftime(time_fmt)}'
+		print(open_msg)
+		print(open_msg, file = logfile)
+	except IOError as e:
+		stderr.write('Error creating logfile {logfile}: {e.strerror}. No logging will occur for this run\n')
+	except KeyError:
+		stderr.write('No proj-logs-dir in config. No logging will occur for this run\n')
+
+
+# Read the pmn config files in the standard way and get the list of organsims to operate on. <args> should be a results of parsing args with a parser that has had add_standard_pmn_args() called on it. Returns a tuple of the config, the table, and the org list. Also opens a logfile for this run
 def read_pipeline_files(args):
+	global verbose, time_always
 	config = read_pipeline_config(args.c)
 
 	verbose = args.v
+	time_always = args.timestamps
+
+	open_logfile(config)
 	try:
 		if args.t:
 			config['proj-pgdb-table'] = args.t
@@ -498,18 +580,26 @@ def read_pipeline_files(args):
 		else:
 			tablefile = config['proj-pgdb-table']
 			info(f'Got name of table file from {args.c}: {tablefile}')
-		ptable = read_pgdb_table(tablefile, config)
+		ptable, index_table = read_pgdb_table(tablefile, config)
 		if args.o:
-			org_list = args.o.split(',')
-			for org in org_list:
+			org_list_in = args.o.split(',')
+			org_list = []
+			for org in org_list_in:
+				try:
+					org = index_table[int(org)]
+				except ValueError:
+					pass
+				except IndexError:
+					error(f'No organism with index {org}')
+					exit(1)
 				if org not in ptable:
-					stderr.write(f'Organism {org} not found in table\n')
+					error(f'Organism {org} not found in table')
 					exit(1)
 		else:
 			org_list = list(ptable.keys())
 		info(f'Got list of orgids from {"command-line args" if args.o else tablefile}, will run the following orgids: {", ".join(org_list)}')
 	except KeyError as e:
-		stderr.write(f'{args.c}: Required variable {e.args[0]} not found')
+		error(f'{args.c}: Required variable {e.args[0]} not found')
 		exit(1)
 	return (config, ptable, org_list)
 
@@ -554,11 +644,11 @@ def version_meets_min(version, min_version):
 def check_env():
 	passed = True
 	if version_info.major < 3 or version_info.minor < 8:
-		stderr.write(f'Error: The pipeline requires Python 3.8 or later; currently running on {version_info.major}.{version_info.minor}.{version_info.micro}, located at {executable}\n')
+		error(f'The pipeline requires Python 3.8 or later; currently running on {version_info.major}.{version_info.minor}.{version_info.micro}, located at {executable}')
 		passed = False
 	for exe in ['java', 'blastp']:
 		if not shutil.which(exe):
-			stderr.write(f'Error: Required executable \'{exe}\' is not in the path\n')
+			error(f'Required executable \'{exe}\' is not in the path')
 			passed = False
 	return passed
 
@@ -567,24 +657,24 @@ def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
 	passed = True
 	for f in files:
 		if not os.path.exists(f):
-			stderr.write(f'Error: File {f}, required by {progname}, was not found\n')
+			error(f'File {f}, required by {progname}, was not found')
 			passed = False
 		elif not os.path.isfile(f):
-			stderr.write(f'Error: File {f}, required by {progname}, exists but is not a standard file or a symlink to a standard file\n')
+			error(f'File {f}, required by {progname}, exists but is not a standard file or a symlink to a standard file')
 			passed = False
 	for d in dirs:
 		if not os.path.exists(d):
-			stderr.write(f'Error: Directory {d}, required by {progname}, was not found\n')
+			error(f'Directory {d}, required by {progname}, was not found')
 			passed = False
 		elif not os.path.isdir(d):
-			stderr.write(f'Error: Directory {d}, required by {progname}, exists but is not a directory\n')
+			error(f'Directory {d}, required by {progname}, exists but is not a directory')
 			passed = False
 	for s in sockets:
 		if not os.path.exists(s):
-			stderr.write(f'Error: Socket {s}, required by {progname}, was not found\n')
+			error(f'Socket {s}, required by {progname}, was not found')
 			passed = False
 		elif not stat.S_ISSOCK(os.stat(s).st_mode):
-			stderr.write(f'Error: DSocket {s}, required by {progname}, exists but is not a socket\n')
+			error(f'DSocket {s}, required by {progname}, exists but is not a socket')
 			passed = False
 	return passed
 
@@ -599,14 +689,14 @@ def check_access(file_list, access, reason = 'required by the pipeline', ignore_
 	try:
 		access_err = acc_errs[access]
 	except KeyError:
-		stderr.write('Internal error: attempt to check for file access type {access}, an unrecognized access type. Please use check_access with a single value in the set os.F_OK, os.R_OK, os.W_OK, or os.X_OK\n')
+		error('Internal error: attempt to check for file access type {access}, an unrecognized access type. Please use check_access with a single value in the set os.F_OK, os.R_OK, os.W_OK, or os.X_OK')
 		exit(2)
 
 	for filename in file_list:
 		if ignore_missing and not path.exists(filename):
 			continue
 		if not os.access(filename, access):
-			stderr.write(f'{access_err} {filename}, {reason}.\n')
+			error(f'{access_err} {filename}, {reason}.')
 			passed = False
 	return passed
 
@@ -624,7 +714,7 @@ def check_pipeline_config(config):
 		if path.exists(e2p2v4_exe):
 			passed &= check_access([e2p2v4_exe], os.X_OK, f'specified in {configfilename}')
 		elif not path.exists(e2p2v5_exe):
-			stderr.write(f'Error: Require either {e2p2v4_exe} (for E2P2v4) or {e2p2v5_exe} (for E2P2v5), but neither exists')
+			error(f'Require either {e2p2v4_exe} (for E2P2v4) or {e2p2v5_exe} (for E2P2v5), but neither exists')
 			passed = False
 			e2p2_exe = '.'
 
@@ -691,18 +781,21 @@ def check_pipeline_config(config):
 		xserver = config.setdefault('x-server', None)
 		if xserver == 'xpra':
 			if shutil.which('xpra') is None:
-				stderr.write(f'Config option x-server in {configfilename} is set to "xpra", but xpra was not found in $PATH\n')
+				error(f'Config option x-server in {configfilename} is set to "xpra", but xpra was not found in $PATH')
 				passed = False
 		elif xserver == 'xvfb':
 			if shutil.which('Xvfb') is None:
-				stderr.write(f'Config option x-server in {configfilename} is set to "xvfb", but Xvfb was not found in $PATH\n')
+				error(f'Config option x-server in {configfilename} is set to "xvfb", but Xvfb was not found in $PATH')
 				passed = False
 		elif xserver is not None and xserver != 'external':
-			srderr.write(f'Config option x-server in {configfilename} is set to "{xserver}, which is not recognized (valid values are external, xpra, or xvfb)\n')
+			error(f'Config option x-server in {configfilename} is set to "{xserver}, which is not recognized (valid values are external, xpra, or xvfb)')
+			passed = False
+		if 'split-fa-num-files' in config and 'split-fa-seqs-per-file' in config:
+			error(f'Config options "split-fa-num-files" and "splt-fa-seqs-per-file" should not both be specified')
 			passed = False
 
 	except KeyError as e:
-		stderr.write(f'Config file {configfilename} is missing required key {e.args[0]}\n')
+		error(f'Config file {configfilename} is missing required key {e.args[0]}')
 		passed = False
 	return passed
 
@@ -716,15 +809,15 @@ def check_pgdb_table(table, config):
 		info(f'Checking table entry for {org}')
 		tax = entry['NCBI Taxon ID']
 		if not re_taxid.match(tax):
-			stderr.write(f'Error: NCBI taxon IDs should be only digits; instead found {tax} for orgid {org} in {table_file}\n')
+			error(f'NCBI taxon IDs should be only digits; instead found {tax} for orgid {org} in {table_file}')
 			passed = False
 		cyc = entry['Database ID']
 		uid = entry['Unique ID']
 		if cyc in cyc_set:
-			stderr.write(f'Error: Duplicate Database ID: {cyc} in {table_file}\n')
+			error(f'Duplicate Database ID: {cyc} in {table_file}')
 			passed = False
 		if uid in uid_set:
-			stderr.write(f'Error: Duplicate Unique ID: {uid} in {table_file}\n')
+			error(f'Duplicate Unique ID: {uid} in {table_file}')
 			passed = False
 		cyc_set.add(cyc)
 		uid_set.add(uid)
@@ -742,7 +835,7 @@ def check_pgdb_table(table, config):
 		pgdb_folder = config['ptools-pgdbs']
 		cyc_folder = path.join(pgdb_folder, cyc.lower()+'cyc')
 		if path.exists(cyc_folder):
-			stderr.write(f'Error: PGDB {cyc}Cyc from {table_file} already exists at {cyc_folder}\n')
+			error(f'PGDB {cyc}Cyc from {table_file} already exists at {cyc_folder}')
 			passed = False
 	return passed
 
@@ -750,17 +843,46 @@ def check_parallelism(config):
 	passed = True
 	par = config.setdefault('parallelism', 'none')
 	if par not in ['none', 'slurm', 'parallel']:
-		stderr.write(f'Unrecognized parallelism provider \'{par}\'. Valid values are \'parallel\', \'slurm\', and \'none\'\n')
+		error(f'Unrecognized parallelism provider \'{par}\'. Valid values are \'parallel\', \'slurm\', and \'none\'')
 		exit(1)
 	if par == 'slurm':
 		if not shutil.which('sbatch'):
-			stderr.write(f'Slurm selected for parallelism, but cannot find the sbatch command. Is Slurm installed?\n')
+			error(f'Slurm selected for parallelism, but cannot find the sbatch command. Is Slurm installed?')
 			passed = False
 	if par == 'parallel':
 		if not shutil.which('parallel'):
-			stderr.write(f'GNU Parallel selected for parallelism, but cannot find the parallel command. Is GNU Parallel installed?\n')
+			error(f'GNU Parallel selected for parallelism, but cannot find the parallel command. Is GNU Parallel installed?')
 			passed = False
 	return passed
+
+# Logs all output of the given process using subproc_msg.
+# The proc should have been started using subprocess.Popen with stdout = PIPE and probably stderr = STDOUT
+# For concurrent external processes, the function should be started in its own thread via start_log_process
+# To make the external process blocking, start it the same way (with Popen) and call log_process directly
+def log_process(proc, proc_name = 'SubProc'):
+	while proc_output := proc.stdout.readline():
+		subproc_msg(proc_output.rstrip(), proc_name)
+
+# Start a thread to monitor the given process (as returned by subprocess.Popen) and to print and log all output it produces.
+# NOTE: The thread keeps a reference to the process object you pass in! You must destroy any object with a reference to the thread object (e.g. a PathwayTools object) manually, else the logging process will make your program hang when it should exit
+def start_log_process(proc, proc_name = 'SubProc'):
+	th = threading.Thread(target = log_process, args = [proc, proc_name])
+	th.start()
+	return th
+
+# Run a blocking external process in the standard way, printing and logging all output. If crash is True, a nonzero exit from the process will make this one crash with the same code. Otherwise returns the process's return code
+def run_external_process(args, env = None, procname = 'SubProc', crash = True):
+	if env is None:
+		env = os.environ
+	proc = subprocess.Popen(args, env = env, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+	log_process(proc, procname)
+	proc.wait()
+	rc = proc.poll()
+	if rc != 0 and crash:
+		error(f'Process {procname} failed')
+		exit(rc)
+	else:
+		return rc
 
 re_disp = re.compile(b'Actual display used: (:[0-9]+)')
 def start_xpra():
@@ -768,7 +890,7 @@ def start_xpra():
 	if xpra_path is not None:
 		info('xpra found, using xpra')
 		res = subprocess.run([xpra_path, 'start'], capture_output = True)
-		info(res.stderr)
+		info(res.stderr.decode())
 		display = re_disp.search(res.stderr).group(1).decode()
 		return xpra_path, display
 	else:
@@ -801,10 +923,10 @@ def socket_msg(cmd, socket_path):
 def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True):
 	info(f'Sending Ptools Command: {cmd}')
 	if not os.path.exists(socket_path):
-		stderr.write(f'Pathway tools socket {socket_path} does not exits. Did you remeember to start Pathway Tools with -api?\n')
+		error(f'Pathway tools socket {socket_path} does not exits. Did you remeember to start Pathway Tools with -api?')
 		raise FileNotFoundError(socket_path)
 	if not stat.S_ISSOCK(os.stat(socket_path).st_mode):
-		stderr.write(f'Pathawy tools socket {socket_path} exists but is not a socket\n')
+		error(f'Pathawy tools socket {socket_path} exists but is not a socket')
 		raise IOError(socket_path)
 	if handle_errs:
 		socket_msg('(setq *status* nil)', socket_path)
@@ -813,7 +935,7 @@ def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True)
 		r = socket_msg(cmd_he, socket_path)
 		e = socket_msg('*status*\n', socket_path)
 		if e != 'NIL':
-			stderr.write(f'{e}\n')
+			error(f'{e}')
 			raise ChildProcessError()
 		else:
 			return r
@@ -823,7 +945,7 @@ def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True)
 def ptools_so(orgid, socket_path = '/tmp/ptools-socket'):
 	found_org = send_ptools_cmd(f"(setq org (find-org '{orgid}))", socket_path = socket_path)
 	if found_org == "NIL":
-		stderr.write(f"Organism {orgid} was not found by the Pathway Tools instance connected to {socket_path}\n")
+		error(f"Organism {orgid} was not found by the Pathway Tools instance connected to {socket_path}")
 		raise ChildProcessError()
 	else:
 		return send_ptools_cmd('(select-organism :org org)', socket_path = socket_path)
@@ -847,7 +969,7 @@ class PathwayTools:
 		cmd = [exe] + args
 		this.pt_cmdline = ' '.join(cmd)
 		if os.path.exists(socket):
-			stderr.write(f'Error: There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function\n')
+			error(f'There is already a Pathway Tools instance using {socket} as a socket. Please quit it before trying to use this function')
 			raise FileExistsError(socket)
 		pt_env = os.environ.copy()
 		if x11 == 'xpra':
@@ -859,6 +981,10 @@ class PathwayTools:
 			this.xvfb_proc, this.display = start_xvfb()
 			this.xpra_path = None
 		else:
+			if x11 is not None:
+				error(f'x-server "{x11}" not recognized')
+			else:
+				info('No x server requested')
 			this.xvfb_proc, this.xpra_path, this.display = None,None,None
 		if this.display:
 			info(f'X11 display is {this.display}')
@@ -873,28 +999,29 @@ class PathwayTools:
 
 		info(f'Starting Pathway Tools as {this.pt_cmdline}')
 		info(f'Env is {pt_env}')
-		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, env = pt_env)
+		this.pt_proc = subprocess.Popen(cmd, stdin = subprocess.DEVNULL, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, env = pt_env)
+		this.log_thread = start_log_process(this.pt_proc, 'PTools')
 		this.timeout = timeout
 		start_time = time.monotonic()
 		while not os.path.exists(socket):
 			if time.monotonic()-start_time > timeout:
 				this.pt_proc.kill()
-				stderr.write(f'Error: Timed out waiting for pathway tools to create an API socket at {socket} ({timeout} secs)\n')
+				error(f'Timed out waiting for pathway tools to create an API socket at {socket} ({timeout} secs)')
 				raise TimeoutError()
 			if this.pt_proc.poll() is not None:
-				stderr.write(f'Error: Pathway Tools failed to start\n')
+				error(f'Pathway Tools failed to start')
 				raise ChildProcessError()
 			time.sleep(0.1)
 	def __enter__(this):
 		return this
 	def send_cmd(this, cmd, handle_errs = True):
 		if this.pt_proc.poll() is not None:
-			stderr.write(f'Error: This instance of Pathway Tools has exited. Please create another instance\n')
+			error(f'This instance of Pathway Tools has exited. Please create another instance')
 			raise ChildProcessError()
 		return send_ptools_cmd(cmd, this.pt_socket, handle_errs)
 	def so(this, org):
 		if this.pt_proc.poll() is not None:
-			stderr.write(f'Error: This instance of Pathway Tools has exited. Please create another instance\n')
+			error(f'This instance of Pathway Tools has exited. Please create another instance')
 			raise ChildProcessError()
 		return ptools_so(org, this.pt_socket)
 	def get_org_list(this):
@@ -918,7 +1045,7 @@ class PathwayTools:
 				break
 			time.sleep(.1)
 		else:
-			stderr.write(f'Warning: Pathway Tools has not responded to the (exit) command for {this.timeout} seconds, sending terminate signal\n')
+			warn(f'Pathway Tools has not responded to the (exit) command for {this.timeout} seconds, sending terminate signal')
 			this.pt_proc.terminate()
 			start_time = time.monotonic()
 			while time.monotonic() - start_time < this.timeout:
@@ -926,7 +1053,7 @@ class PathwayTools:
 					break
 				time.sleep(.1)
 			else:
-				stderr.write(f'Warning: Pathway Tools has not responded to the terminate signal for {this.timeout} seconds, sending kill signal\n')
+				warn(f'Pathway Tools has not responded to the terminate signal for {this.timeout} seconds, sending kill signal')
 				this.pt_proc.kill()
 				start_time = time.monotonic()
 				while time.monotonic() - start_time < this.timeout:
@@ -934,12 +1061,13 @@ class PathwayTools:
 						break
 					time.sleep(.1)
 				else:
-					stderr.write(f'Error: Pathway Tools has not responded to the kill signal for {this.timeout} seconds. You will have to terminate the process manually. Process ID is {this.pt_proc.pid}\n')
+					error(f'Pathway Tools has not responded to the kill signal for {this.timeout} seconds. You will have to terminate the process manually. Process ID is {this.pt_proc.pid}')
 		info('Pathway Tools exited')
 		if this.xpra_path:
 			info('Stopping xpra')
 			subprocess.run([this.xpra_path, 'stop', this.display])
 		if this.xvfb_proc is not None:
+			info('Stopping Xvfb')
 			this.xvfb_proc.terminate()
 	def __del__(this):
 		info(f'Pathway Tools connection object for {this.pt_proc.pid} is being deallocated, making sure the ptools instance has quit')
@@ -965,5 +1093,5 @@ class PMNPathwayTools (PathwayTools):
 			if orgid.upper() not in orgids_avail:
 				orgids_missing += orgid
 		if orgids_missing:
-			stderr.write(f'Error: Required database{"s" if len(orgids_missing) > 1 else ""} not found: {", ".join([org+"Cyc" for org in orgids_missing])}. PMN databases can be downloaded from https://plantcyc.org after requesting a free license')
+			error(f'Required database{"s" if len(orgids_missing) > 1 else ""} not found: {", ".join([org+"Cyc" for org in orgids_missing])}. PMN databases can be downloaded from https://plantcyc.org after requesting a free license')
 			raise ChildProcessError()

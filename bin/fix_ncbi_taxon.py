@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from sys import stdin, stdout, stderr
+import pmn
 import argparse as ap
 
 
@@ -8,7 +9,7 @@ def fix_file(species_file):
 	try:
 		infile = open(species_file, 'r+')
 	except IOError as e:
-		stderr.write('%s: %s\n'%(species_file, e.strerror))
+		pmn.error('%s: %s\n'%(species_file, e.strerror))
 		return
 	lines = infile.readlines()
 	taxon = None
@@ -21,13 +22,13 @@ def fix_file(species_file):
 		if taxon is not None and tax_line is not None:
 			break
 	if taxon is None:
-		stderr.write('Species file %s does not contain an NCBI dblink; skipping\n'%species_file)
+		pmn.warn('Species file %s does not contain an NCBI dblink; skipping'%species_file)
 		return
 	new_tax_line = 'NCBI-TAXONOMY-ID - %s\n'%taxon
 	if tax_line:
 		current_taxon = lines[tax_line].split(' ')[2].rstrip()
 		if current_taxon != 'NIL':
-			stderr.write('Species %s already has a taxon ID: %s (the one from the dblink is %s). It will not be replaced\n'%(species_file, current_taxon, taxon))
+			pmn.info('Species %s already has a taxon ID: %s (the one from the dblink is %s). It will not be replaced'%(species_file, current_taxon, taxon))
 			return
 		lines[tax_line] = new_tax_line
 	else:
@@ -35,10 +36,10 @@ def fix_file(species_file):
 	infile.seek(0)
 	infile.truncate()
 	infile.write(''.join(lines))
-	stderr.write('%s written with taxon id %s\n'%(species_file, taxon))
+	pmn.info('%s written with taxon id %s'%(species_file, taxon))
 
 if __name__ == '__main__':
-	par = ap.ArgumentParser(description = 'Fixes the species.dat file so it contains the ncbi taxon id needed by savi')
+	par = ap.ArgumentParser(description = 'Fixes a species.dat file so it contains the ncbi taxon id needed by savi. This is to work around a bug in some earlier versions of Pathway Tools; current versions probably don\'t need it')
 	par.add_argument(help = 'The species.dat file to process. This file will be modified.', nargs='+', dest = 's')
 	args = par.parse_args()
 	for species_file in args.s:

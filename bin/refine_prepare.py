@@ -7,7 +7,6 @@ import time
 from os import path
 import os
 import shutil
-import subprocess
 
 def main():
 
@@ -50,13 +49,13 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 
 def refine_prepare(config, table, org_list, ptools = None):
 	if version_info.major < 3 or version_info.minor < 8:
-		stderr.write(f'Refine-prepare requires Python 3.8 or later to run (currently running Python {version_info.major}.{version_info.minor}.{version_info.micro})\n')
+		pmn.error(f'Refine-prepare requires Python 3.8 or later to run (currently running Python {version_info.major}.{version_info.minor}.{version_info.micro})')
 		exit(1)
 	try:
 		ptools_exe = config['ptools-exe']
 		pmn.info(f'Pathway Tools executable is at {ptools_exe}')
 		masters_folder = config['proj-masters-dir']
-		pmn.info(f'Looking for PGDB master files in {masters_folder}\n')
+		pmn.info(f'Looking for PGDB master files in {masters_folder}')
 		common_dir = config['proj-common-dir']
 		if not ptools:
 			ptools = pmn.PMNPathwayTools(config)
@@ -269,10 +268,10 @@ lisp	(save-kb)
 			blastset.close()
 
 	except KeyError as e:
-		stderr.write(f'{config["_filename"]}: Required variable {e.args[0]} not found')
+		pmn.error(f'{config["_filename"]}: Required variable {e.args[0]} not found')
 		exit(1)
 	except IOError as e:
-		stderr.write(f'{e.filename}: {e.strerror}\n')
+		pmn.error(f'{e.filename}: {e.strerror}')
 		exit(1)
 if __name__ == "__main__":
 	exit(main())

@@ -28,7 +28,7 @@ def create_savi_citations(config, orgtable, orglist, ptools = None):
 	savi_dir = config['savi']
 	orgs_avail = ptools.get_org_list()
 	if 'ARA' not in orgs_avail:
-		stderr.write('Error: AraCyc not found. This pipeline requires a copy of AraCyc in order to run. AraCyc may be downloaded from https://plantcyc.org after requesting a free license\n')
+		pmn.error('AraCyc not found. This pipeline requires a copy of AraCyc in order to run. AraCyc may be downloaded from https://plantcyc.org after requesting a free license\n')
 		exit(1)
 	ptools.so('ara')
 	for year in years:

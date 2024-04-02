@@ -5,7 +5,7 @@ import argparse as ap
 import pmn
 
 def main():
-	par = ap.ArgumentParser(description='Creates the Organization and Author frames for the given PGDB. Organization and Author info will be take from the files specified in the pipeline config file')
+	par = ap.ArgumentParser(description='Creates the Organization and Author frames for the given PGDB. Organization and Author info will be taken from the files specified in the pipeline config file')
 	pmn.add_standard_pmn_args(par, 'given the Organization and Author frames')
 	args = par.parse_args()
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
@@ -29,12 +29,12 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 			try:
 				auth_entry = author_table[author]
 			except KeyError:
-				stderr.write(f'Error: Author {author} referenced by pgdb {orgid} does not have an entry in {config["authors-file"]}')
+				pmn.error(f'Author {author} referenced by pgdb {orgid} does not have an entry in {config["authors-file"]}')
 				exit(1)
 			author_orgns = auth_entry['Affiliations'].split(' ')
 			for orgn in author_orgns:
 				if orgn not in organization_table:
-					stderr.write(f'Error: Organization {orgn} referenced by author {author} in {config["authors-file"]} does not have an entry in {config["organizations-file"]}')
+					pmn.error(f'Organization {orgn} referenced by author {author} in {config["authors-file"]} does not have an entry in {config["organizations-file"]}')
 					exit(1)
 				orgn_set.add(orgn)
 			auth_entry.setdefault('_orgids', set())
@@ -49,7 +49,7 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 			try:
 				orgn_entry = organization_table[orgn]
 			except KeyError:
-				stderr.write(f'Error: Organization {orgn} referenced by author {author} in {config["authors-file"]} does not have an entry in {config["organizations-file"]}')
+				pmn.error(f'Organization {orgn} referenced by author {author} in {config["authors-file"]} does not have an entry in {config["organizations-file"]}')
 				exit(1)
 			orgn_entry.setdefault('_authors', set())
 			orgn_entry['_authors'].add(author)
