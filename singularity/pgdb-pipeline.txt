@@ -50,8 +50,8 @@ parallelism = none
 slurm-job-pack = 4
 
 # Versions of the E2P2 and SAVI software and of the RPSD data used in the pipeline. These are used in making citations for E2P2 and SAVI
-e2p2-version = 4.0
-rpsd-version = 4.2
+e2p2-version = 5.0
+rpsd-version = 5.2
 savi-version = 3.1
 
 # Files containing info for all authors to be credited for the generated databases(authors-file), and of all organizations given as affiliations in that file (organizations-file). Author lists for individual databases still need to be given in the PGDB table

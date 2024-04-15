@@ -110,7 +110,10 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			pmn.message(pmn.red_text('\nOne or more checks failed; please address the issues before continuing with the pipeline'))
 			exit(1)
 	elif stage == 'e2p2':
-		from split_fasta import get_split_filename
+		if split_id:
+			from split_fasta import get_split_filename
+			os.makedirs(path.join(config['proj-e2p2-dir'], 'splits'), exist_ok = True)
+
 		pmn.message(pmn.blue_text('==Running E2P2=='))
 		e2p2v5_exe = path.join(config['e2p2'], 'e2p2.py')
 		e2p2v4_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
@@ -197,22 +200,28 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 	elif stage == 'revise':
 		pmn.message(pmn.blue_text('==Revising E2P2 files with gene IDs=='))
 		# Run revise_pf.py
-		# arg_col enumerates columns in the input table used for revise_pf.py and maps them to arguments to be given to revise_pf.py
-		arg_col = [
-				('-ig', 'GFF File'),
-				('-if', 'Sequence File'),
-				('-im', 'Map In'),
-				('-om', 'Map Out'),
+		# arg_col enumerates columns in the input table used for revise_pf.py and maps them to arguments to be given to revise_pf.py. It is constructed for each org from the arg_col_* vars based on which sources of gene ID were requested via the 'Genes From' column for that org
+		arg_col_gen = [
+				('-n', 'Numeric IDs'),
+				('-gr', 'Gene Delete'),
 				('-r', 'PF File'),
+				('-om', 'Map Out'),
+				]
+		arg_col_fa = [
+				('-if', 'Sequence File'),
 				('-fs', 'FASTA Sep'),
 				('-fg', 'FASTA Field'),
 				('-fkv', 'FASTA KV'),
+				]
+		arg_col_gff = [
+				('-ig', 'GFF File'),
 				('-gpf', 'GFF Prot Feature'),
 				('-gpn', 'GFF Prot Name'),
 				('-gk', 'GFF Key'),
 				('-gg', 'GFF Path'),
-				('-n', 'Numeric IDs'),
-				('-gr', 'Gene Delete')
+				]
+		arg_col_map = [
+				('-im', 'Map In'),
 				]
 
 		try:
@@ -225,6 +234,19 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 				arglist = [re.sub(r'\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
 			else:
 				arglist = [entry['Initial PF File']+'.orxn.pf']
+			# Figure out where we're getting the gene IDs from and construct arg_col based on that
+			genes_from = entry.setdefault('Genes From', '').lower().split(',')
+			arg_col = []
+			if 'fasta' in genes_from:
+				arg_col.extend(arg_col_fa)
+			if 'gff' in genes_from:
+				arg_col.extend(arg_col_gff)
+			if 'map' in genes_from:
+				arg_col.extend(arg_col_map)
+			if not arg_col:
+				pmn.warn('No \'Genes From\' column for {org}, will not map proteins to genes')
+				continue
+			arg_col.extend(arg_col_gen)
 			for arg, col in arg_col:
 				try:
 					#arg_dict[arg] = entry[col]
@@ -411,7 +433,7 @@ else:
 		ptools = None
 	for stage in stage_list:
 		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools, split_id = args.s)
-		if ptools:
-			# The logging thread has a reference to the ptools object, so we must delete it manually to trigger the code that quits ptools
-			del ptools
-		print()
+	if ptools:
+		# The logging thread has a reference to the ptools object, so we must delete it manually to trigger the code that quits ptools
+		del ptools
+	print()

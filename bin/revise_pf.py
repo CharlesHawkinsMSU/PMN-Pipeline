@@ -32,6 +32,8 @@ def parse_input_map(mapfile):
 
 # Parse a fasta file, looking only at the headers, and return a dictionary that maps from protein accessions (assumed to be the first field) to gene accessions
 def parse_fasta(fafile, gene_key, sep, kv_sep):
+    sep = sep.expandtabs()
+    kv_sep = kv_sep.expandtabs()
     try:
         gene_key = int(gene_key)
         numbered_field = True

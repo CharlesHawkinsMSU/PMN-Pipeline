@@ -426,6 +426,10 @@ def read_pgdb_table(tables, config = None):
 					entry.setdefault('PWY Plantcyc', f'all_pwy.plant')
 					entry.setdefault('Reference DB', 'Plant')
 					try:
+						entry.setdefault('Map Out', entry['Map In'] + '.out')
+					except KeyError:
+						entry.setdefault('Map Out', entry['Sequence File'] + '.map.out')
+					try:
 						entry['_Authors'] = [as_lisp_symbol(a) for a in entry['Authors'].split(' ')]
 					except KeyError:
 						pass
