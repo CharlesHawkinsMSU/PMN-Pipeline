@@ -10,6 +10,9 @@ proj-fasta-dir = fasta
 # Directory where e2p2 will save the resulting .pf files
 proj-e2p2-dir = e2p2
 
+# Config file for E2P2
+e2p2-config = e2p2-config.ini
+
 # Directory in which to put the savi input and output (should contain input and output subdirectories)
 proj-savi-dir = savi
 
@@ -38,7 +41,7 @@ ptools-pgdbs = /pmn/ptools-local/pgdbs/user
 proj-common-dir = common
 
 # Directory to save logfiles
-proj-log-dir = logs
+proj-logs-dir = logs
 
 # If running as an update to a previous release, set this to the project folder for that previous release; if not then it can be left blank
 previous-version-proj =

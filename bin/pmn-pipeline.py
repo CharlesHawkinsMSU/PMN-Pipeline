@@ -140,6 +140,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 					'--output', outpath
 					]
 			if e2p2_exe is e2p2v4_exe:
+				# Command-line options that were required for E2P2 v4 (in v5 this stuff is all in the config file)
 				cmd += [
 					'--blastp', 'blastp',
 					'--java', 'java',
@@ -147,6 +148,12 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 					'--priam_profile', config['priam-profile'],
 					'--rpsd', path.join(config['rpsd'], 'blastdb', 'rpsd-'+config['rpsd-version']+'.fasta'),
 					]
+			else: # For E2P2 v5
+				# If the user specified an e2p2 config file, put that in the E2P2 args
+				try:
+					cmd += ['--config', config['e2p2-config']]
+				except KeyError:
+					pass
 			if config['parallelism'] == 'slurm':
 				org_masters_dir = path.join(config['proj-masters-dir'], orgid)
 				try:

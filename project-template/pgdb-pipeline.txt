@@ -52,6 +52,9 @@ proj-log-dir = logs
 # Path to where e2p2 is installed
 e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
 
+# Path to the E2P2 config file for E2P2 v5; if not given the default is to look for "config.ini" in the E2P2 program directory. E2P2 comes with an example config file in data/config_template.ini. Ignored if E2P2v4 is being used as v4 does not use a config file
+# e2p2-config = e2p2-config.ini
+
 # If running as an update to a previous release, set this to the project folder for that previous release; if not then it can be left blank
 previous-version-proj =
 
