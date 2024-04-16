@@ -122,7 +122,8 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		else:
 			e2p2_exe = e2p2v4_exe
 		e2p2_cmds = []
-		for orgid, org_entry in orgtable.items():
+		for orgid in orglist:
+			org_entry = orgtable[orgid]
 			inpath = org_entry['Sequence File']
 			outpath = org_entry['Initial PF File']
 			if split_id:
@@ -236,7 +237,8 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		except ImportError:
 			pmn.error('revise_pf.py not found')
 			exit(1)
-		for org, entry in orgtable.items():
+		for org in orglist:
+			entry = orgtable[org]
 			if path.exists(path.join(config['e2p2'], 'e2p2.py')):
 				arglist = [re.sub(r'\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
 			else:
@@ -278,7 +280,8 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		savi_dir = config['savi']
 		pmn.info(f'Changing to savi program dir {savi_dir}')
 		os.chdir(savi_dir)
-		for org, entry in orgtable.items():
+		for org in orglist:
+			entry = orgtable[org]
 			org_savi_in_dir = path.join(in_dir, org)
 			org_savi_out_dir = path.join(out_dir, org)
 			savi_cmd = [path.join('.', 'runSAVI.sh'), org_savi_in_dir, org_savi_out_dir]

@@ -599,6 +599,7 @@ def read_pipeline_files(args):
 				if org not in ptable:
 					error(f'Organism {org} not found in table')
 					exit(1)
+				org_list.append(org)
 		else:
 			org_list = list(ptable.keys())
 		info(f'Got list of orgids from {"command-line args" if args.o else tablefile}, will run the following orgids: {", ".join(org_list)}')
