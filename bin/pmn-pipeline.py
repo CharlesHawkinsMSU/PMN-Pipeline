@@ -129,9 +129,10 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			passed = False
 		if passed:
 			pmn.message(pmn.green_text('\nAll checks passed!'))
-			exit(0)
 		else:
 			pmn.message(pmn.red_text('\nOne or more checks failed; please address the issues before continuing with the pipeline'))
+			if ptools:
+				del ptools
 			exit(1)
 	elif stage == 'list':
 		pmn.message(pmn.blue_text('Index\tOrgID'))
@@ -481,7 +482,8 @@ else:
 	else:
 		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
 		ptools = None
-	pmn.message(f'Will run {len(stage_list)} stage{"s" if len(stage_list) != 1 else ""}: {pmn.andlist(stage_list, quote = "\"")}')
+	stage_andlist = pmn.andlist(stage_list, quote = "\"")
+	pmn.message(f'Will run {len(stage_list)} stage{"s" if len(stage_list) != 1 else ""}: {stage_andlist}')
 	for stage in stage_list:
 		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools, split_id = args.s)
 	if ptools:

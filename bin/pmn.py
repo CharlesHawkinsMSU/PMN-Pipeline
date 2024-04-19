@@ -124,7 +124,7 @@ def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 # Given a list (or other iterable) of strings (or objects that are convertible to strings), returns an English-style list of them; e.g. "Alice, Bob, and Carol" is returned for andlist(["Alice", "Bob", "Carol"]).
 #  <oxford> turns on or off the Oxford comma (a comma after the penultimate element when there are at least three elements)
 #  <copula> is the copula to use (generally this will be "and" or "or")
-#  <quote> can be used to put quotes or brackets around the list items and should be a string of one or two characters (depending on whether you want different start and end quote characters), so for example '"' will put quote marks or '()' will put parens
+#  <quote> can be used to put quotes or brackets around the list items and should be a string of one or two characters (depending on whether you want different start and end quote characters), so for example '"' will put quote marks or '()' will put parens. You can also give quote = True as a synonym for '"', to make it easier to use in e.g. f-strings
 #  Examples:
 #   andlist(['Hello', 'Goodbye']) -> "Hello and Goodbye"
 #   andlist(['This', 'That', 'T\'other']) -> "This, That, and T'Other"
@@ -134,6 +134,8 @@ def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 #   andlist(['a','b','c'], quote='[]') -> '[a], [b], and [c]'
 def andlist(l, oxford = True, copula = 'and', quote = None):
 	l = [f'{quote[0]}{element}{quote[-1]}' for element in l] if quote else list(l)
+	if quote == True:
+		quote = '"'
 	match len(l):
 		case 0: 
 			return ''
@@ -401,7 +403,8 @@ def read_pgdb_table(tables, config = None):
 			unrecognized_columns = set(header) - recognized_columns
 			if unrecognized_columns:
 				plural = len(unrecognized_columns) > 1
-				message(f'Column{"s" if plural else ""} {andlist(unrecognized_columns, copula = "and", quote = "\"")} in {table} are not used in the pipeline and will be ignored', attn = 'Note', attn_style = [green_text, bold_text])
+				uc_andlist = andlist(unrecognized_columns, quote = "\"")
+				message(f'Column{"s" if plural else ""} {uc_andlist} in {table} are not used in the pipeline and will be ignored', attn = 'Note', attn_style = [green_text, bold_text])
 			line_n = 1
 			for line in tablefile:
 				line = [f.strip('"') for f in line.rstrip().split('\t')]
@@ -854,9 +857,6 @@ def check_pipeline_config(config):
 		elif xserver is not None and xserver != 'external':
 			error(f'Config option x-server in {configfilename} is set to "{xserver}, which is not recognized (valid values are external, xpra, or xvfb)')
 			passed = False
-		if 'split-fa-num-files' in config and 'split-fa-seqs-per-file' in config:
-			error(f'Config options "split-fa-num-files" and "splt-fa-seqs-per-file" should not both be specified')
-			passed = False
 
 	except KeyError as e:
 		error(f'Config file {configfilename} is missing required key {e.args[0]}')
@@ -899,8 +899,7 @@ def check_pgdb_table(table, config):
 		pgdb_folder = config['ptools-pgdbs']
 		cyc_folder = path.join(pgdb_folder, cyc.lower()+'cyc')
 		if path.exists(cyc_folder):
-			error(f'PGDB {cyc}Cyc from {table_file} already exists at {cyc_folder}')
-			passed = False
+			warn(f'PGDB {cyc}Cyc from {table_file} already exists at {cyc_folder}. It will be overwritten if you proceed')
 	return passed
 
 def check_parallelism(config):
