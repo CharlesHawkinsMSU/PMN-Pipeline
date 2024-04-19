@@ -28,7 +28,7 @@ def fix_file(species_file):
 	if tax_line:
 		current_taxon = lines[tax_line].split(' ')[2].rstrip()
 		if current_taxon != 'NIL':
-			pmn.info('Species %s already has a taxon ID: %s (the one from the dblink is %s). It will not be replaced'%(species_file, current_taxon, taxon))
+			pmn.info('Species %s does have a taxon ID: %s (the one from the dblink is %s). No fix needed'%(species_file, current_taxon, taxon))
 			return
 		lines[tax_line] = new_tax_line
 	else:

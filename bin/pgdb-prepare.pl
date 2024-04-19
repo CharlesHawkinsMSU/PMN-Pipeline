@@ -31,6 +31,7 @@ my $table_file = $ARGV[0];
 my $pf_dir = $ARGV[1];
 my $masters_dir = $ARGV[2];
 my $ptools = $ARGV[3];
+my @orglist = split(/,/, $ARGV[4]);
 
 $|=1;   # Output prior
 
@@ -44,7 +45,12 @@ my %pgdb_table = pmn::read_pgdb_table($table_file);
 
 # for each species
 
-foreach my $species (keys %pgdb_table) {
+if (!@orglist)
+{
+    @orglist = keys %pgdb_table;
+}
+
+foreach my $species (@orglist) {
     
 	# Extract the entry data into variables
 	my $entry = $pgdb_table{$species};

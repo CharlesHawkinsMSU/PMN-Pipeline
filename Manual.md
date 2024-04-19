@@ -473,6 +473,13 @@ This may be caused by simply being out of disk space &mdash; the container requi
 
 This likely means that you didn't bind a writeable directory to the /pgdbs directory within the container; see the PGDBs location section above for the solution.
 
+### My fasta or GFF file is inconsistent in terms of how proteins map to genes
+
+PMN curators have encountered cases where a GFF file is inconsistent in terms of where protein IDs are; for example the annotation for Persea americana drymifolia (ref) has some proteins in the fasta file correspond to mRNA entries in the GFF file (parented to gene entries) and others to CDNA entries (parented to mRNA entries parented to gene entries). We solved this in the following way:
+* Manually call the revise_pf.py script, manually type in the GFF parameters to read the mRNA-based mappings (including -gpf mRNA -gg Parent.Name), and use the --map-only option to save the full mapping to a file
+* Do the same but with parameters to read the CDS-base mappings (-gpf CDS -gg Parent.Parent.Name)
+* Concatenate the two maps together and use this as the input map for the organism
+
 ### Glossary
 
 #### E2P2 (Ensemble Enzyme Prediction Pipeline)

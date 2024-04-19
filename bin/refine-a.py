@@ -9,10 +9,10 @@ def main():
     pmn.add_standard_pmn_args(par, action = 'refined')
 
     args = par.parse_args()
-    (config, orgtable, org_list) = pmn.read_pipeline_files(args)
-    refine_a(config, orgtable, org_list)
+    (config, orgtable, orglist) = pmn.read_pipeline_files(args)
+    refine_a(config, orgtable, orglist)
 
-def refine_a(config, orgtable, org_list, ptools = None)
+def refine_a(config, orgtable, orglist, ptools = None)
     try:
         savi_dir = config['proj-savi-dir']
         common_dir = config['proj-common-dir']
@@ -21,19 +21,19 @@ def refine_a(config, orgtable, org_list, ptools = None)
         exit(1)
     if ptools is None:
         ptools = pmn.PMNPathwayTools(config)
-    for org in org_list:
+    for org in orglist:
         try:
-            org_entry = orgtable[orgid]
+            entry = orgtable[org]
         except KeyError:
-            stderr.write('Organism {orgid} not found in PGDB table\n')
+            stderr.write('Organism {org} not found in PGDB table\n')
             exit(1)
-        savi_out = path.join(savi_dir, 'output', orgid)
+        savi_out = path.join(savi_dir, 'output', org)
         ic = path.join(savi_out, 'ic.txt')
         remove = path.join(savi_out, 'remove.txt')
         pmn.check_exists(files = [ic, remove])
-        pgdb_authors = org_entry['Authors']
+        pgdb_authors = entry['Authors']
         curator = '|pmngroup|'
-        savi_citation = org_entry['SAVI Citation']
+        savi_citation = entry['SAVI Citation']
         ext_dbs = ['|PHYTOZOME|', '|MAIZEGDB|', '|ENSEMBL-PROTEIN|']
         pmn.info(f'Initial sanity checks passed for organism {org}, proceeding with refine-a for this organism')
         pmn.verbose = True

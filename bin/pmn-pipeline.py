@@ -19,9 +19,33 @@ import refine_c
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker'])
+stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages'])
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = set(['create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset'])
+
+stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
+			  'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
+			  'revise': 'Add in gene IDs to the E2P2 output files',
+			  'prepare': 'Puts all files in place to create PGDBs',
+			  'create': 'Creates initial PGDBs using PathoLogic',
+			  'savi-dump': 'Dumps PGDBs to flat-files required for SAVI; alias for "dump"',
+			  'savi-prepare': 'Puts all files in place to run SAVI',
+			  'savi': 'Runs SAVI to apply pathway-level curation rules to each new PGDB',
+			  'refine-prepare': 'Generates author and citation frames, and puts all files in place to run refine A',
+			  'refine-a': 'Applies SAVI\'s suggestions for pathways to add/remove; adds in citations for E2P2 and SAVI; fixes common names of enzymatic reactions; adds external database links to enzymes if available',
+			  'refine-b': 'Finds any experimentally-validated pathways and enzymes in the reference database(s) for each species and imports them into the appropriate PGDB',
+			  'refine-c': 'Runs Pathway Tools\' cconsistency checker; generates the cellular overview; assigns the requested authors to each PGDB',
+			  'blastset': 'Generates BLAST dbs for each PGDB so their enzymes can be searched using BLAST',
+			  'final-dump':'Dumps both attribute-value and BioPAX flatfiles (i.e. runs "dump" and "dump-biopax")',
+			  'split': 'Splits input FASTAs into multiple parts so they can be run through E2P2 in parallel (see the -s option); should be run before "e2p2"',
+			  'join': 'Joins the split E2P2 output files for each species into one for each species; should be run before "revise"',
+			  'delete': 'Deletes existing PGDBs listed in the input table',
+			  'dump': 'Dumps attribute-value flat files for each PGDB to pgdbs/<orgid>cyc/<version>/data',
+			  'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
+			  'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
+			  'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
+			  'list-stages': 'List all valid stages in the pipeline'
+			  }
 
 par = ap.ArgumentParser(description = 'Used to run each stage of the PMN release pipeline')
 pmn.add_standard_pmn_args(par, action='run')
@@ -32,7 +56,7 @@ args = par.parse_args()
 pmn.verbose = args.v
 
 def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, split_id = None):
-	pmn.message(f'Running stage {stage}')
+	pmn.message(f'Running stage "{stage}"')
 	if stage == 'savi-dump':
 		stage = 'dump'
 	elif stage == 'final-dump':
@@ -109,6 +133,18 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		else:
 			pmn.message(pmn.red_text('\nOne or more checks failed; please address the issues before continuing with the pipeline'))
 			exit(1)
+	elif stage == 'list':
+		pmn.message(pmn.blue_text('Index\tOrgID'))
+		for org in orglist:
+			entry = orgtable[org]
+			pmn.message(f'{entry["_index"]}\t{org}')
+	elif stage == 'list-stages':
+		pmn.message(pmn.blue_text('Stages in the standard sequence:'))
+		for i in range(len(stage_sequence)):
+			pmn.message(f'{i+1}. {pmn.green_text(stage_sequence[i])} - {stage_help.setdefault(stage_sequence[i], "<no help available>")}')
+		pmn.message(pmn.blue_text('Additional stages not in the standard sequence:'))
+		for stage in stages_nonsequenced:
+			pmn.message(f'- {pmn.green_text(stage)} - {stage_help.setdefault(stage, "<no help available>")}')
 	elif stage == 'e2p2':
 		if split_id:
 			from split_fasta import get_split_filename
@@ -122,12 +158,12 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		else:
 			e2p2_exe = e2p2v4_exe
 		e2p2_cmds = []
-		for orgid in orglist:
-			org_entry = orgtable[orgid]
-			inpath = org_entry['Sequence File']
-			outpath = org_entry['Initial PF File']
+		for org in orglist:
+			entry = orgtable[org]
+			inpath = entry['Sequence File']
+			outpath = entry['Initial PF File']
 			if split_id:
-				pmn.info(f'Running E2P2 on split {split_id} of {orgid}')
+				pmn.info(f'Running E2P2 on split {split_id} of {org}')
 				infilename = path.split(inpath)[-1]
 				inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
 				inpath = get_split_filename(inpre, split_id)
@@ -156,7 +192,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 				except KeyError:
 					pass
 			if config['parallelism'] == 'slurm':
-				org_masters_dir = path.join(config['proj-masters-dir'], orgid)
+				org_masters_dir = path.join(config['proj-masters-dir'], org)
 				try:
 					os.mkdir(org_masters_dir)
 				except FileExistsError:
@@ -164,7 +200,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 				slurm_script_path = path.join(org_masters_dir, 'E2P2.slurm.sh')
 				slurm_script = f'''#!/bin/bash
 
-#SBATCH -J E2P2_{orgid}
+#SBATCH -J E2P2_{org}
 #SBATCH --partition DPB
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -183,7 +219,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 					with open(slurm_script_path, 'w') as slurm_script_file:
 						slurm_script_file.write(slurm_script)
 				except IOError as e:
-					pmn.error(f'Error creating {orgid} slurm script {slurm_script_path}: {e.strerror}')
+					pmn.error(f'Error creating {org} slurm script {slurm_script_path}: {e.strerror}')
 					exit(1)
 
 				cmd = ['sbatch', slurm_script_path]
@@ -197,7 +233,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 
 	elif stage == 'prepare':
 		pmn.message(pmn.blue_text('==Preparing master files=='))
-		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe']], procname = 'Prepare')
+		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe'], ','.join(orglist)], procname = 'Prepare')
 		if prepare_result != 0:
 			pmn.error('Prepare script failed')
 			exit(prepare_result)
@@ -247,13 +283,16 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			genes_from = entry.setdefault('Genes From', '').lower().split(',')
 			arg_col = []
 			if 'fasta' in genes_from:
+				pmn.info(f'{org} getting genes from FASTA')
 				arg_col.extend(arg_col_fa)
 			if 'gff' in genes_from:
+				pmn.info(f'{org} getting genes from GFF')
 				arg_col.extend(arg_col_gff)
 			if 'map' in genes_from:
+				pmn.info(f'{org} getting genes from Map file')
 				arg_col.extend(arg_col_map)
 			if not arg_col:
-				pmn.warn('No \'Genes From\' column for {org}, will not map proteins to genes')
+				pmn.warn(f'No \'Genes From\' column for {org} or no recognizedvalues for the column, will not map proteins to genes')
 				continue
 			arg_col.extend(arg_col_gen)
 			for arg, col in arg_col:
@@ -261,7 +300,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 					#arg_dict[arg] = entry[col]
 					arglist.extend([arg, entry[col]])
 				except KeyError as e:
-					pass
+					pmn.info(f'{org} has no value for column {col}, will not include {arg} argument to revise_pf')
 			pmn.info(f'Args to revise_pf: {arglist}')
 			args = revise_pf.get_pf_args(arglist)
 			revise_pf.main(args)
@@ -370,14 +409,15 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			masterfile = masterfile + '.master'
 		pmn.message(pmn.blue_text(f'==Running master file {masterfile}=='))
 		masterscript = path.join(perl_scripts_path, 'pmn-release-pipeline-parallel.pl')
-		for org in orgtable:
+		for org in orglist:
 			pmn.message('Running %s on %s'%(masterfile, org))
 			masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
 			perl_env = os.environ.copy()
 			perl_env['PTOOLS-ACCESS-SOCKET']=ptools.pt_socket
 			pmn.info(f'Perl environment: {perl_env}')
-			mf_result = subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env=perl_env, capture_output = True)
-			pmn.subproc_msg(mf_result.stdout)
+			#mf_result = subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env=perl_env, capture_output = True)
+			#pmn.subproc_msg(mf_result.stdout)
+			pmn.run_external_process(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env = perl_env, procname = masterfile)
 	return 0
 
 # This code determines the stage list and runs them
@@ -389,7 +429,7 @@ elif 'newproj' in args.stage:
 	pmn.error('The newproj command should only be run on its own')
 	exit(1)
 else:
-	pmn.message(f'Running stages: {", ".join(args.stage)}')
+	pmn.info(f'Stages requested to be run: {", ".join(args.stage)}')
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
 	config['_y_flag'] = args.y
 	config['_filename'] = args.c
@@ -437,10 +477,11 @@ else:
 		# If we're running refine-c, then we need to set up an x-server (PTools needss to put up the GUI to generate the cellular overview) and also start ptools in web mode (required for PTools to generate the web cellular overview)
 		running_refine_c = 'refine-c' in stage_list
 		pmn.info(f'Stage list contains refine-c: {"yes" if running_refine_c else "no"}')
-		ptools = pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], x11 = config['x-server'] if running_refine_c else None)
+		ptools = pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], x11 = config['x-server'])
 	else:
 		pmn.info(f'No need to start Pathway Tools for stage(s) {", ".join(args.stage)}')
 		ptools = None
+	pmn.message(f'Will run {len(stage_list)} stage{"s" if len(stage_list) != 1 else ""}: {pmn.andlist(stage_list, quote = "\"")}')
 	for stage in stage_list:
 		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools, split_id = args.s)
 	if ptools:

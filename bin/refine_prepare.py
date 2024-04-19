@@ -16,9 +16,9 @@ def main():
 
 	args = par.parse_args()
 
-	(config, table, org_list) = pmn.read_pipeline_files(args)
+	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
 	pmn.verbose = args.v
-	return refine_prepare(config, table, org_list)
+	return refine_prepare(config, orgtable, orglist)
 def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 	common_dir = config['proj-common-dir']
 	pmn.info(f'Generating common files in {common_dir}')
@@ -47,7 +47,7 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 
 		
 
-def refine_prepare(config, table, org_list, ptools = None):
+def refine_prepare(config, orgtable, orglist, ptools = None):
 	if version_info.major < 3 or version_info.minor < 8:
 		pmn.error(f'Refine-prepare requires Python 3.8 or later to run (currently running Python {version_info.major}.{version_info.minor}.{version_info.micro})')
 		exit(1)
@@ -63,15 +63,15 @@ def refine_prepare(config, table, org_list, ptools = None):
 		pt_vers = ptools.send_cmd('(ptools-version)').strip('"')
 
 		# Iterate over the species
-		for orgid in org_list:
-			org_path = path.join(masters_folder, orgid)
-			pmn.info(f'Preparing {orgid}')
-			org_entry = table[orgid]
-			year = org_entry['Citation Year']
+		for org in orglist:
+			org_path = path.join(masters_folder, org)
+			pmn.info(f'Preparing {org}')
+			entry = orgtable[org]
+			year = entry['Citation Year']
 
-			refdb = org_entry['Reference DB']
+			refdb = entry['Reference DB']
 
-			pmn.info(f'Writing savi-comment for {orgid}')
+			pmn.info(f'Writing savi-comment for {org}')
 			org_common_dir = path.join(org_path, 'common')
 			os.makedirs(org_common_dir, exist_ok = True)
 			savi_comment = open(path.join(org_common_dir, 'savi-comment'), 'w')
@@ -107,15 +107,15 @@ super	PMNSP{year}:EV-COMP-HINF	<i>This superpathway was predicted to exist in th
 			savi_comment.write(savi_comment_text)
 
 			# write overview.master foreach species
-			pmn.info (f'Writing overview.master for {orgid}')
+			pmn.info (f'Writing overview.master for {org}')
 			overview_master = open(path.join(org_path, 'overview.master'), 'w')
-			overview_master.write(f's_ptools\t{ptools_exe}\nlisp\t(so \'{orgid})\nlisp\t(update-overview :save? t :batch-mode? t :show-progress? nil)\nlisp\t(save-kb)\n')
+			overview_master.write(f's_ptools\t{ptools_exe}\nlisp\t(so \'{org})\nlisp\t(update-overview :save? t :batch-mode? t :show-progress? nil)\nlisp\t(save-kb)\n')
 			overview_master.close()
 
 			# write refine-a.master foreach species
-			pmn.info (f'Writing refine-a.master for {orgid}')
-			start_timestamp = org_entry.setdefault('START timestamp', 0)
-			end_timestamp = org_entry.setdefault('END timestamp', 99999999999)
+			pmn.info (f'Writing refine-a.master for {org}')
+			start_timestamp = entry.setdefault('START timestamp', 0)
+			end_timestamp = entry.setdefault('END timestamp', 99999999999)
 
 
 			refine_a_text = f'''# Master file for PMN release pipeline
@@ -137,13 +137,13 @@ super	PMNSP{year}:EV-COMP-HINF	<i>This superpathway was predicted to exist in th
 # f_* are files that will be used by scripts, only whose name will be passed to commands
 
 s_ptools	{ptools_exe}
-s_pgdb	{orgid}
-s_sp_name	"{org_entry["Species Name"]}"
-s_sp_folder	{orgid}
+s_pgdb	{org}
+s_sp_name	"{entry["Species Name"]}"
+s_sp_folder	{org}
 # set s_start_timestamp to 0 and s_end_timestamp to current timestamp for new PGDB
 s_start_timestamp	{start_timestamp}
 s_end_timestamp	{end_timestamp}
-s_seq_source	{org_entry["Seq Source"]}
+s_seq_source	{entry["Seq Source"]}
 s_seq_source_acc	accession-1
 
 s_cm_folder	common
@@ -153,19 +153,19 @@ fs_pwy_add	ic
 
 # other parameters
 #
-# NOTE: Citations are propagated from aracyc to the destination {orgid}, so please create citations first in source PGDB 'ara.
+# NOTE: Citations are propagated from aracyc to the destination {org}, so please create citations first in source PGDB 'ara.
 
 s_curator	|pmngroup|
 #s_savi_citation	|PUB-PMNUPP2013| |PUB-PMNAIPP2013| |PUB-PMNRXN2013| |PUB-PMNRXNTAXON2013| |PUB-PMNTAXON2013| |PUB-PMNIC2013| |PUB-PMNSP2013|
-s_savi_citation	{org_entry["SAVI Citation"]}
-s_e2p2_citation	{org_entry["E2P2 Citation"]}
-s_enzrxn_citation	{org_entry["Enzrxn Citation"]}
+s_savi_citation	{entry["SAVI Citation"]}
+s_e2p2_citation	{entry["E2P2 Citation"]}
+s_enzrxn_citation	{entry["Enzrxn Citation"]}
 
 f_savi_comment	savi-comment
-f_enz_name	{org_entry["ENZ name file"]}
+f_enz_name	{entry["ENZ name file"]}
 f_rxn_name_map	{refdb}-rxn-name-mapping
-f_meta_link	{org_entry["PWY Metacyc"]}
-f_plant_link	{org_entry["PWY Plantcyc"]}
+f_meta_link	{entry["PWY Metacyc"]}
+f_plant_link	{entry["PWY Plantcyc"]}
 
 fs_new_proteins	s_pgdb-s_start_timestamp-s_end_timestamp-new-proteins
 fs_new_enzrxns	s_pgdb-s_start_timestamp-s_end_timestamp-new-enzrxns
@@ -178,10 +178,10 @@ lisp	(so 's_pgdb)	select organism
 lisp	(loop for p in '(fs_pwy_del) do (if (coercible-to-frame-p p) (delete-frame-and-dependents p) (format T "Warning: Frame ~A is in the list of frames to be deleted from ~ACYC but was not found in ~ACYC~%" p 's_pgdb 's_pgdb)))
 
 # import pathways from the reference DB inferred by curator (this function does not import enzymes with the pathway)
-{"lisp	(so 'meta)" if org_entry["Also MetaCyc"] else ""}
+{"lisp	(so 'meta)" if entry["Also MetaCyc"] else ""}
 lisp	(so '{refdb})
 lisp	(so 's_pgdb)
-lisp	(loop for pwy in '(fs_pwy_add) do (loop for ref-org in '({refdb}{" meta" if org_entry["Also MetaCyc"] else ""}) for ref-kb = (find-org ref-org) when (coercible-to-frame-p pwy :kb ref-kb) do (import-pathways (list pwy) ref-kb (find-org 's_pgdb)) and return ref-org finally (return nil)))
+lisp	(loop for pwy in '(fs_pwy_add) do (loop for ref-org in '({refdb}{" meta" if entry["Also MetaCyc"] else ""}) for ref-kb = (find-org ref-org) when (coercible-to-frame-p pwy :kb ref-kb) do (import-pathways (list pwy) ref-kb (find-org 's_pgdb)) and return ref-org finally (return nil)))
 
 # add curator |pmngroup| to PGDB
 lisp	(so 'ara)
@@ -202,9 +202,10 @@ lisp	(import-frames :frames '(|MAIZEGDB|) :src-kb (find-org 'ara) :dst-kb (find-
 lisp	(import-frames :frames '(|ENSEMBL-PROTEIN|) :src-kb (find-org 'ara) :dst-kb (find-org 's_pgdb))
 
 # Edit 07/06/2017: Update Author List:
+# Edit 2024: this is now done in refine-prepare
 #	lisp	(so 'ara)
 #	lisp	(so 's_pgdb)
-#	lisp	(import-frames :frames '({org_entry["Authors"]}) :src-kb (find-org 'ara) :dst-kb (find-org 's_pgdb))
+#	lisp	(import-frames :frames '({entry["Authors"]}) :src-kb (find-org 'ara) :dst-kb (find-org 's_pgdb))
 
 # get newly added proteins and enzrxns within the time range
 perl	s_script_folder/get_new_proteins_enzrxns_within_timestamp_range.pl s_pgdb s_start_timestamp s_end_timestamp s_sp_folder
@@ -238,21 +239,21 @@ lisp	(so 's_pgdb)
 # save the kb
 lisp	(save-kb)
 '''
-			pmn.info(f'Writing refine-a.master for {orgid}')
+			pmn.info(f'Writing refine-a.master for {org}')
 			refine_a = open(path.join(org_path, 'refine-a.master'), 'w')
 			refine_a.write(refine_a_text)
 			refine_a.close()
 
 			# Copy SAVI output and common directories into the org's master directory
-			pmn.info(f'Copying SAVI output for {orgid}')
-			shutil.copytree(path.join(config['proj-savi-dir'], 'output', orgid), path.join(org_path, orgid), dirs_exist_ok = True)
-			pmn.info(f'Copying SAVI common files to {orgid}')
+			pmn.info(f'Copying SAVI output for {org}')
+			shutil.copytree(path.join(config['proj-savi-dir'], 'output', org), path.join(org_path, org), dirs_exist_ok = True)
+			pmn.info(f'Copying SAVI common files to {org}')
 			shutil.copytree(common_dir, path.join(org_path, 'common'), dirs_exist_ok = True)
 
 			# Fix newlines. Subsequent scripts expect files with unix newlines and the .txt extension stripped off
-			pmn.info(f'Fixing newlines for {orgid}')
-			for file in os.listdir(path.join(org_path, orgid)):
-				file = path.join(org_path, orgid, file)
+			pmn.info(f'Fixing newlines for {org}')
+			for file in os.listdir(path.join(org_path, org)):
+				file = path.join(org_path, org, file)
 				newfilename = file.replace('.txt', '')
 				file_handle = open(file)
 				file_contents = file_handle.read()
@@ -262,9 +263,9 @@ lisp	(save-kb)
 				newfile_handle.close()
 
 			# Write blastset.master
-			pmn.info(f'Writing blastset.master for {orgid}')
+			pmn.info(f'Writing blastset.master for {org}')
 			blastset = open(path.join(org_path, 'blastset.master'), 'w')
-			blastset.write(f's_ptools\t{ptools_exe}\ns_script_folder\t.\nperl\ts_script_folder/create-blast-dataset-pgdb.pl {orgid} "{org_entry["Version"]}" "{org_entry["Species Name"]}" "{org_entry["Seq Source"]}" {org_entry["Sequence File"]} {config["proj-blastsets-dir"]}\n')
+			blastset.write(f's_ptools\t{ptools_exe}\ns_script_folder\t.\nperl\ts_script_folder/create-blast-dataset-pgdb.pl {org} "{entry["Version"]}" "{entry["Species Name"]}" "{entry["Seq Source"]}" {entry["Sequence File"]} {config["proj-blastsets-dir"]}\n')
 			blastset.close()
 
 	except KeyError as e:

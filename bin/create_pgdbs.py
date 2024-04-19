@@ -12,13 +12,13 @@ def main():
 
 	args = par.parse_args()
 
-	(config, table, org_list) = pmn.read_pipeline_files(args)
-	create_pgdbs(config, table, org_list)
+	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
+	create_pgdbs(config, orgtable, orglist)
 
-def create_pgdbs(config, table, org_list = None, ptools = None):
+def create_pgdbs(config, orgtable, orglist = None, ptools = None):
 	try:
-		if org_list is None:
-			org_list = table.keys()
+		if orglist is None:
+			orglist = orgtable.keys()
 		#ptools = config['ptools-exe']
 		print(f'Info: Pathway Tools executable is at {ptools}')
 		masters_folder = config['proj-masters-dir']
@@ -26,9 +26,9 @@ def create_pgdbs(config, table, org_list = None, ptools = None):
 		if ptools is None:
 			ptools = pmn.PMNPathwayTools(config)
 		print(f'ptools: {ptools}')
-		for orgid in org_list:
-			org_path = path.join(masters_folder, orgid, '')
-			entry = table[orgid]
+		for org in orglist:
+			org_path = path.join(masters_folder, org, '')
+			entry = orgtable[org]
 			use_meta = entry['Also MetaCyc']
 			patho_cmd = f'(batch-pathologic "{entry["Version"]}" "{org_path}" :hole-filler? nil :complex-inference? nil :operon-predictor? nil :tip? nil :do-overview? nil :web-cel-ov? nil :download-publications? t :dump-flat-files-biopax? nil :taxonomic-pruning? t :blast-data? t :omit-name-matching? nil :replace-organism? t :private-org-counter? t :suppress-metadata-saving? t :import-org-proteins-from-metacyc {"t" if use_meta else "NIL"} :import-org-pathways-from-metacyc {"t" if use_meta else "NIL"})'
 			pmn.info(patho_cmd)

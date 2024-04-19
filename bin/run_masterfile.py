@@ -22,8 +22,8 @@ def run_masterfile(config, orgtable, orglist = None, masterfile = None, ptools =
 	pmn.info(f'Running masterfile {masterfile} for orgids: {", ".join(orglist)}')
 	if ptools is None:
 		ptools = pmn.PMNPathwayTools(config)
-	for orgid in orglist:
-		org_path = path.join(config['proj-masters-dir'], orgid)
+	for org in orglist:
+		org_path = path.join(config['proj-masters-dir'], org)
 		pmn.info(f'Orgid path is {org_path}')
 		masterfile_path = path.join(org_path, masterfile = '.master')
 		masterfile_vars = {}

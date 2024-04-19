@@ -121,6 +121,29 @@ def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 		except KeyboardInterrupt:
 			return False
 
+# Given a list (or other iterable) of strings (or objects that are convertible to strings), returns an English-style list of them; e.g. "Alice, Bob, and Carol" is returned for andlist(["Alice", "Bob", "Carol"]).
+#  <oxford> turns on or off the Oxford comma (a comma after the penultimate element when there are at least three elements)
+#  <copula> is the copula to use (generally this will be "and" or "or")
+#  <quote> can be used to put quotes or brackets around the list items and should be a string of one or two characters (depending on whether you want different start and end quote characters), so for example '"' will put quote marks or '()' will put parens
+#  Examples:
+#   andlist(['Hello', 'Goodbye']) -> "Hello and Goodbye"
+#   andlist(['This', 'That', 'T\'other']) -> "This, That, and T'Other"
+#   andlist(['This', 'That', 'T\'other'], oxford = False) -> "This, That and T'Other"
+#   andlist(['To be', 'not to be'], cop = 'or') -> "To be or not to be"
+#   andlist(['a','b','c'], quote='"') -> '"a", "b", and "c"'
+#   andlist(['a','b','c'], quote='[]') -> '[a], [b], and [c]'
+def andlist(l, oxford = True, copula = 'and', quote = None):
+	l = [f'{quote[0]}{element}{quote[-1]}' for element in l] if quote else list(l)
+	match len(l):
+		case 0: 
+			return ''
+		case 1:
+			return f'{l[0]}'
+		case 2:
+			return f'{l[0]} {copula} {l[1]}'
+		case _:
+			return f'{", ".join(l[:-1])}{"," if oxford else ""} {copula} {l[-1]}'
+
 # Parses an attribute string of the form "attr1=val1;attr2=val2;..." into a dictionary. Used in parsing gff files
 def parse_attrs(attr_str):
 	attr_dict = {}
@@ -307,9 +330,9 @@ def read_pipeline_config(configfile, default_file = '/etc/pmn-pipeline.conf'):
 
 # Reads in a tab-separated text file with header, and returns a dictionary mapping from the value in the column whose name matches <key_col> to a dictionary mapping from column header names to the value for that column in that row
 # So if you have the following file as table.txt:
-#  UID   Name	Comment
-#  U01   Alice   I'm a user!
-#  U02   Bob	 I'm also a user!
+#   UID   Name   Comment
+#   U01   Alice  I'm a user!
+#   U02   Bob    I'm also a user!
 # then read_table_file("table.txt", "UID") will return:
 # {'U01':{'UID':'U01','Name':'Alice','Comment':'I\'m a user!'},
 #  'U02':{'UID':'U02','Name':'Bob','Comment':'I\'m also a user!'}}
@@ -339,6 +362,21 @@ def read_table_file(filename, key_col):
 
 pf_re = re.compile(r'(.pf)?$')
 orxn_pf = re.compile(r'\.orxn\.pf$')
+recognized_columns = set([
+		'Presets', 'Database ID', 'ID/Name', 'Database Name',
+		'Species Name', 'Abbrev Name', 'Sequence File', 
+		'Initial PF File', 'PF File', 'Citation Year',
+		'SAVI Citation', 'E2P2 Citation', 'Enzrxn Citation',
+		'ENZ name file', 'RXN Map', 'PWY Metacyc', 'PWY Plantcyc',
+		'Reference DB', 'Also MetaCyc', 'Map In', 'Map Out',
+		'Authors', 'Genes From', 'FASTA Field', 'FASTA Sep',
+		'FASTA KV', 'GFF File', 'GFF Prot Feature', 'GFF Prot Name',
+		'GFF Key', 'GFF Path', 'Species Name', 'NCBI Taxon ID',
+		'Sequence File', 'Unique ID', 'Version', 'Seq Source',
+		'Curator', 'Citation Year', 'START timestamp', 'END timestamp',
+		'Gene Delete', 'Numeric IDs',
+		])
+
 # Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used. Also returns a dict from indexes to orgids
 def read_pgdb_table(tables, config = None):
 	# proj_dirs enumerates project directories, with a tuple that includes the key in the config file specifying the directory and the column in the table file that contains a file that should be located there
@@ -360,6 +398,10 @@ def read_pgdb_table(tables, config = None):
 		for table in tables:
 			tablefile = openfile(table)
 			header = [f.strip('"') for f in tablefile.readline().rstrip().split('\t')]
+			unrecognized_columns = set(header) - recognized_columns
+			if unrecognized_columns:
+				plural = len(unrecognized_columns) > 1
+				message(f'Column{"s" if plural else ""} {andlist(unrecognized_columns, copula = "and", quote = "\"")} in {table} are not used in the pipeline and will be ignored', attn = 'Note', attn_style = [green_text, bold_text])
 			line_n = 1
 			for line in tablefile:
 				line = [f.strip('"') for f in line.rstrip().split('\t')]
@@ -459,12 +501,12 @@ def read_pgdb_table(tables, config = None):
 							pass
 
 				# Finished building this entry, put it into the appropriate dictionary (preset_dict or pgdb_dict depending on whether it's a preset definition or an actual pgdb)
-				orgid = entry['Database ID'] 
-				if orgid.startswith('/'):
-					preset_dict[orgid[1:]] = entry
+				org = entry['Database ID'] 
+				if org.startswith('/'):
+					preset_dict[org[1:]] = entry
 				else:
-					pgdb_dict[orgid] = entry
-					index_table[index] = orgid
+					pgdb_dict[org] = entry
+					index_table[index] = org
 					index += 1
 				line_n += 1
 
@@ -477,15 +519,15 @@ def write_pgdb_tablefile(orgtable, orglist, path, fields = None):
 	if fields is None:
 		# We need to get a set of all the fields that are present and non-empty for at least one of the requested orgids
 		fields = set()
-		for orgid in orglist:
-			entry = orgtable[orgid]
+		for org in orglist:
+			entry = orgtable[org]
 			entry_fields = entry.keys()
 			entry_fields = [field for field in entry_fields if not field.startswith('_') and entry[field]]
 			fields.update(entry_fields)
 		fields = list(fields) # We need the order of the set to be stable. It is currently in CPython as long as the set is unchanged, but it is not guaranteed that this will always remain the case in the future and for all implementations of Python
 	with openfile(path, 'w') as outfile:
 		outfile.write('\t'.join(fields)+'\n')
-		for orgid in orglist:
+		for org in orglist:
 			outfile.write('\t'.join([entry.setdefault(field, '') for field in fields])+'\n')
 
 # Adds some standard arguments used in all pipeline scripts
@@ -498,46 +540,43 @@ def add_standard_pmn_args(par, action = 'operated on'):
 	par.add_argument('-p', '--proj', default = '.', help = 'Project directory. Defaults to the current working directory', dest = 'proj')
 	par.add_argument('-y', '--yes', action = 'store_true', help = 'Assume yes to all prompts', dest = 'y')
 
-verbose = False
-logfile = None
-time_fmt = '%F %T'
-time_always = False
-def message(msg):
-	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {msg}'
-	print(tmsg if time_always else msg)
+verbose = False # Print "verbose" messages to the console, not just to the logfile
+logfile = None # The open logfile
+time_fmt = '%F %T' # The strftime format for message timestamps
+time_always = False # Include a timestamp when printing messages to the console, not just in the logfile
+
+# Delivers the message <msg> to the console. Also prints it to the logfile if one is open. Messages always get a timestamp in the logfile; they get one on the console too only if the time_always var (usually set with --timestamps) is True
+# 
+# <attn> is the attention/marker to use, such as 'Info' to print "Info: {msg}"
+# <attn_style> is a list of styling functions to run on the attn, such as bold_text or red_text
+# <verbose_only> will only print the msg to the console if the verbose variable (usually set with --verbose) is True. Messages will always be printed to the logfile if there is one, regardless of verbosity
+
+def message(msg, attn = None, attn_style = [], verbose_only = False):
+	if attn:
+		for s in attn_style:
+			attn = s(attn)
+		imsg = f'{attn}: {msg}'
+	else:
+		imsg = msg
+	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
+	if verbose or not verbose_only:
+		print(tmsg if time_always else imsg)
 	if logfile:
 		print(tmsg, file = logfile)
 
 def info(msg):
-	imsg = f'{bold_text(blue_text("Info"))}: {msg}'
-	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
-	if verbose:
-		print(tmsg if time_always else imsg)
-	if logfile:
-		print(tmsg, file = logfile)
+	message(msg, attn = 'Info', attn_style = [blue_text, bold_text], verbose_only = True)
 
 def error(msg):
-	imsg = f'{bold_text(red_text("Error"))}: {msg}'
-	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
-	print(tmsg if time_always else imsg)
-	if logfile:
-		print(tmsg, file = logfile)
+	message(msg, attn = 'Error', attn_style = [red_text, bold_text])
 
 def warn(msg):
-	imsg = f'{bold_text(yellow_text("Warning"))}: {msg}'
-	tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
-	print(tmsg if time_always else imsg)
-	if logfile:
-		print(tmsg, file = logfile)
+	message(msg, attn = 'Warning', attn_style = [yellow_text, bold_text])
 
 newline_re = re.compile(r'\r?\n')
 def subproc_msg(output, procname = "SubCmd"):
 	for msg in newline_re.split(output.decode().rstrip()):
-		imsg = f'{bold_text(purple_text(procname))}: {msg}'
-		tmsg = f'[{gray_text(time.strftime(time_fmt))}] {imsg}'
-		print(tmsg if time_always else imsg)
-		if logfile:
-			print(tmsg, file = logfile)
+		message(msg, attn = procname, attn_style = [purple_text, bold_text])
 
 # Gets a unique ID for this run. Bases it on the process ID unless we're running in SLURM, in which case it's based on the job ID
 def get_run_id():
@@ -567,6 +606,26 @@ def open_logfile(config):
 	except KeyError:
 		stderr.write('No proj-logs-dir in config. No logging will occur for this run\n')
 
+def interp_backslashes(s):
+	s2 = ''
+	i = 0
+	l = len(s)
+	while i < l:
+		c = s[i]
+		if c == '\\':
+			i += 1
+			try:
+				c2 = s[i]
+				if c2 == 't':
+					s2 += '\t'
+				else:
+					s2 += c2
+			except IndexError:
+				s2 += c
+		else:
+			s2 += c
+		i += 1
+	return s2
 
 # Read the pmn config files in the standard way and get the list of organsims to operate on. <args> should be a results of parsing args with a parser that has had add_standard_pmn_args() called on it. Returns a tuple of the config, the table, and the org list. Also opens a logfile for this run
 def read_pipeline_files(args):
@@ -946,11 +1005,11 @@ def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True)
 			return r
 	else:
 		return socket_msg(cmd, socket_path)
-# Switch organisms in the ptools instance. This function should be used instead of the lisp function "so" because (so 'org) uses (break) when the orgid was not found rather than raise a catchable condition, freezing up the api and preventing recovery
-def ptools_so(orgid, socket_path = '/tmp/ptools-socket'):
-	found_org = send_ptools_cmd(f"(setq org (find-org '{orgid}))", socket_path = socket_path)
+# Switch organisms in the ptools instance. This function should be used instead of the lisp function "so" because (so 'org) uses (break) when the org was not found rather than raise a catchable condition, freezing up the api and preventing recovery
+def ptools_so(org, socket_path = '/tmp/ptools-socket'):
+	found_org = send_ptools_cmd(f"(setq org (find-org '{org}))", socket_path = socket_path)
 	if found_org == "NIL":
-		error(f"Organism {orgid} was not found by the Pathway Tools instance connected to {socket_path}")
+		error(f"Organism {org} was not found by the Pathway Tools instance connected to {socket_path}")
 		raise ChildProcessError()
 	else:
 		return send_ptools_cmd('(select-organism :org org)', socket_path = socket_path)
@@ -1094,9 +1153,9 @@ class PMNPathwayTools (PathwayTools):
 			orglist = [orglist]
 		orgids_avail = self.send_cmd('(all-orgids)')
 		orgids_missing = []
-		for orgid in orglist:
-			if orgid.upper() not in orgids_avail:
-				orgids_missing += orgid
+		for org in orglist:
+			if org.upper() not in orgids_avail:
+				orgids_missing += org
 		if orgids_missing:
 			error(f'Required database{"s" if len(orgids_missing) > 1 else ""} not found: {", ".join([org+"Cyc" for org in orgids_missing])}. PMN databases can be downloaded from https://plantcyc.org after requesting a free license')
 			raise ChildProcessError()

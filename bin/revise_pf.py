@@ -32,8 +32,8 @@ def parse_input_map(mapfile):
 
 # Parse a fasta file, looking only at the headers, and return a dictionary that maps from protein accessions (assumed to be the first field) to gene accessions
 def parse_fasta(fafile, gene_key, sep, kv_sep):
-    sep = sep.expandtabs()
-    kv_sep = kv_sep.expandtabs()
+    sep = pmn.interp_backslashes(sep)
+    kv_sep = pmn.interp_backslashes(kv_sep)
     try:
         gene_key = int(gene_key)
         numbered_field = True
@@ -162,7 +162,7 @@ def process_pf(pfname, rpfname, prot2gene, gene2id = {}, prot2id = {}, numeric_p
     try:
         pffile = open(pfname, 'r')
     except IOError as e:
-        pmn.error('%s: %s\n'%(pffile, e.strerror))
+        pmn.error('%s: %s\n'%(pfname, e.strerror))
         exit(1)
     try:
         rpffile = open(rpfname, 'w')
@@ -258,12 +258,13 @@ def get_pf_args(arglist = None):
     par.add_argument('-ngp', '--gene-prefix', default = 'G-', help = 'Prefix for the generated gene IDs', dest = 'gp')
     par.add_argument('-d', '--discard-map-ids', action = 'store_true', help = 'If the input mapping file contains gene and protein IDs, discard them and go with either the accessions or, if -n is specified, newly-assigned numeric IDs', dest = 'd')
     par.add_argument('-gr', '--gene-delete', help='Optional regex used to remove unwanted elements from the gene ID as it appears in its field. Any text matching the regex will be removed. So for example if the gene ID is given as g12345:102938:12038:chr3 where only the first part is what you want, you can give -gr \':.*\' to remove the unwanted chromosome coordinates. Applies to gene IDs read from fasta and gff, but not to input mapping files', dest='gd')
+    par.add_argument('--map-only', action = 'store_true', help = 'Only output the output map, do not revise the pf', dest = 'mo')
 
     if arglist:
         args = par.parse_args(arglist)
     else:
         args = par.parse_args()
-    if not (args.f or args.ifa or args.im):
+    if not (args.f or args.ifa or args.im or args.mo):
         pmn.error('Must specify at least one of: -ig, -if, -im\n')
         exit(1)
     return args
@@ -294,16 +295,22 @@ def main(args = None):
         rpffilename = args.i.rsplit('.',1)[0]+'.revised.pf'
     else:
         rpffilename = args.r
+    if(args.o is None):
+        mapfilename = args.i.rsplit('.',1)[0]+'.map'
+    else:
+        mapfilename = args.o
+    if args.mo:
+        mapfile = open(mapfilename, 'w')
+        for prot, gene in prot2gene.items():
+            mapfile.write(gene + '\t' + prot + '\n')
+        mapfile.close()
+        return 0
     gene2id, prot2id = process_pf(args.i, rpffilename, prot2gene, gene2id_from_map, prot2id_from_map, args.gp if args.n else None)
 
     if args.im:
         gene2id.update(gene2id_from_map)
         prot2id.update(prot2id_from_map)
 
-    if(args.o is None):
-        mapfilename = args.i.rsplit('.',1)[0]+'.map'
-    else:
-        mapfilename = args.o
     write_map(prot2gene, gene2id, prot2id, mapfilename)
 
 if __name__ == "__main__":

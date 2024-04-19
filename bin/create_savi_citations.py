@@ -17,8 +17,8 @@ def create_savi_citations(config, orgtable, orglist, ptools = None):
 	if ptools is None:
 		ptools = pmn.PMNPathwayTools(config)
 	years = set()
-	for orgid, entry in orgtable.items():
-		years.add(entry['Citation Year'])
+	for org in orglist:
+		years.add(orgtable[org]['Citation Year'])
 
 	pmn.info(f'Will create SAVI citations in AraCyc for {", ".join(years)}')
 	e2p2_vers = config['e2p2-version']

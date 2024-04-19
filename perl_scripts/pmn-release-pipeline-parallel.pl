@@ -13,7 +13,7 @@ my $usage = <<USAGE;
 # Output: logfile of the ptools lisp and perlcyc commands #
 ###########################################################
 
-  Usage: $0 <master-file-of-commands> <pathway tools socket> [output-logfile]
+  Usage: $0 <master-file-of-commands> [output-logfile]
 
 USAGE
 
@@ -50,6 +50,8 @@ if ($ARGV[1]) {
 }
 
 my $pt_sock_path = $ENV{'PTOOLS-ACCESS-SOCKET'} || "/tmp/ptools-socket";
+
+my @orglist = split(/,/, $ENV{'PMN_ORGLIST'});
 
 message("# Cmd: ".$cmdline);
 message("# Started: ".$date."\n");

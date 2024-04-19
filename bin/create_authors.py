@@ -21,15 +21,15 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 
 
 	# Add to each author a set of orgids as "_orgids"
-	for orgid in orglist:
-		entry = orgtable[orgid]
+	for org in orglist:
+		entry = orgtable[org]
 		orgid_authors = entry['Authors'].split(' ')
 		orgn_set = set()
 		for author in orgid_authors:
 			try:
 				auth_entry = author_table[author]
 			except KeyError:
-				pmn.error(f'Author {author} referenced by pgdb {orgid} does not have an entry in {config["authors-file"]}')
+				pmn.error(f'Author {author} referenced by pgdb {org} does not have an entry in {config["authors-file"]}')
 				exit(1)
 			author_orgns = auth_entry['Affiliations'].split(' ')
 			for orgn in author_orgns:
@@ -38,7 +38,7 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 					exit(1)
 				orgn_set.add(orgn)
 			auth_entry.setdefault('_orgids', set())
-			auth_entry['_orgids'].add(orgid)
+			auth_entry['_orgids'].add(org)
 		entry['_orgns'] = orgn_set
 
 	# Add to each organization a set of authors as "_authors" and a set of orgids as "_orgids"
@@ -64,11 +64,11 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 	origin_orgids = {}  # Which organism db has been used to create each Organization frame (it will then be propagated to all the others)
 
 	# We will go through each pgdb in the orglist, then go through each organization it needs (the "_orgns" field). For each such organization, we check if it already exists in this pgdb (would've been imported from metacyc or plantcyc due to authorship of one or more frames) in which case we fill in the info from our Organizations file. Otherwises create it anew in the database
-	for orgid in orglist:
-		pmn.info(f' Creating Organization frames for {orgid}')
-		org_entry = orgtable[orgid]
-		ptools.so(orgid)
-		for orgn in org_entry['_orgns']:
+	for org in orglist:
+		pmn.info(f' Creating Organization frames for {org}')
+		entry = orgtable[org]
+		ptools.so(org)
+		for orgn in entry['_orgns']:
 			orgn_symbol = pmn.as_lisp_symbol(orgn)
 			if ptools.send_cmd(f'(coercible-to-frame-p {orgn_symbol})') != 'T':
 				pmn.info(f'  Organization frame {orgn} does not exist, creating blank frame')
@@ -82,8 +82,8 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 					put_cmd = f'(put-slot-value {orgn_symbol} \'{slot} "{val}")'
 					pmn.info(f'  {put_cmd}')
 					ptools.send_cmd(put_cmd)
-		pmn.info(f' Creating Author frames for {orgid}')
-		for author in org_entry['Authors'].split(' '):
+		pmn.info(f' Creating Author frames for {org}')
+		for author in entry['Authors'].split(' '):
 			author_symbol = pmn.as_lisp_symbol(author)
 			if ptools.send_cmd(f'(coercible-to-frame-p {author_symbol})') != 'T':
 				pmn.info(f'  Author frame {author} does not exist, creating blank frame')
@@ -98,7 +98,7 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 					pmn.info(f'  {put_cmd}')
 					ptools.send_cmd(put_cmd)
 
-		pmn.info(f' Saving database {orgid}')
+		pmn.info(f' Saving database {org}')
 		ptools.send_cmd('(save-kb)')
 				
 
