@@ -17,10 +17,10 @@ use strict;
 # @individual_required_fields are required for each organism, and cannot be
 # specified using /default
 my @individual_required_fields;
-@individual_required_fields = ("Database ID", "Species Name", "NCBI Taxon ID", "Sequence File", "Unique ID", "Version", "Seq Source");
+@individual_required_fields = ("Database ID");
 # @required_fields are required, but can be specified using /default
 my @required_fields;
-@required_fields = ("Authors", "Curator", "Citation Year");
+@required_fields = ("Authors", "Curator", "Version", "Citation Year", "Species Name", "NCBI Taxon ID", "Sequence File", "Unique ID", "Seq Source");
 my @all_required_fields;
 @all_required_fields = (@individual_required_fields, @required_fields);
 sub read_pgdb_table
@@ -82,15 +82,20 @@ sub read_pgdb_table
 
 		# The Database ID field is what we'll be indexing by
 		my $db_id = $fields[$field_index{"Database ID"}];
-		if ($db_id ne "/default")
+		#if ($db_id ne "/default")
+		if ($db_id !~ /^\//)
 		{
+			print "checking $db_id\n";
 			# Check that this entry has all individually-required fields
+			print "@fields\n";
 			foreach my $f (@individual_required_fields)
 			{
-				if(!$fields[$f])
+				print "checking field $f\n";
+				if(!$fields[$field_index{$f}])
 				{
 					die "Line $line_n in $table_filename is missing required field: $f\n"
 				}
+				print "value is $fields[$field_index{$f}]\n";
 			}
 		}
 		my %entry;  # The hash for this species entry; maps from column names to the value in that column for this species

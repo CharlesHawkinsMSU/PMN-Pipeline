@@ -234,6 +234,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 
 	elif stage == 'prepare':
 		pmn.message(pmn.blue_text('==Preparing master files=='))
+		print(orglist)
 		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe'], ','.join(orglist)], procname = 'Prepare')
 		if prepare_result != 0:
 			pmn.error('Prepare script failed')
@@ -277,9 +278,10 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		for org in orglist:
 			entry = orgtable[org]
 			if path.exists(path.join(config['e2p2'], 'e2p2.py')):
-				arglist = [re.sub(r'\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])]
+				in_pf_path = re.sub(r'\.[^.]*$', '.MaxWeightAbsoluteThreshold.orxn.pf', entry['Initial PF File'])
 			else:
-				arglist = [entry['Initial PF File']+'.orxn.pf']
+				in_pf_path = entry['Initial PF File']+'.orxn.pf'
+			arglist = [in_pf_path]
 			# Figure out where we're getting the gene IDs from and construct arg_col based on that
 			genes_from = entry.setdefault('Genes From', '').lower().split(',')
 			arg_col = []
@@ -294,6 +296,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 				arg_col.extend(arg_col_map)
 			if not arg_col:
 				pmn.warn(f'No \'Genes From\' column for {org} or no recognizedvalues for the column, will not map proteins to genes')
+				copy2(in_pf_path, entry['PF File']);
 				continue
 			arg_col.extend(arg_col_gen)
 			for arg, col in arg_col:
