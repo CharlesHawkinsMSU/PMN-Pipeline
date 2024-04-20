@@ -3,6 +3,7 @@
 from sys import stdin, stdout, stderr
 import argparse as ap
 from collections import defaultdict
+import re
 import pmn
 
 # Parses a map file with gene accessions in the first column and protein accessions in the second column, and returns a dictionary mapping from proteins to genes. If another two columns are present, then they will be taken as gene and protein IDs and dictionaries mapping from gene accessions to gene ids and protein accessions to protein ids will also be returned; otherwise the other two returns will be empty dicts
@@ -119,12 +120,18 @@ def parse_gff(gfffile, prot_feature, prot_name, ref_key, gene_path, cds_path = N
             name = proteins[protein]
             gene = protein
             for path_entry in path:
-                    gene = gff_entries[gene]
-                    if path_entry not in gene:
-                            pmn.warn('Path entry %s not found in gff entry %s while looking for the gene for protein %s\n'%(path_entry, gene[ref_key], protein))
-                            gene = None
-                            break
-                    gene = gene[path_entry]
+                try:
+                        gene = gff_entries[gene]
+                except KeyError:
+                        pmn.warn(f'GFF file {gfffile} has no feature with {ref_key} = {gene}, protein {name} will not be mapped')
+                        gene = None
+                        break
+
+                if path_entry not in gene:
+                        pmn.warn('Path entry %s not found in gff entry %s while looking for the gene for protein %s\n'%(path_entry, gene[ref_key], protein))
+                        gene = None
+                        break
+                gene = gene[path_entry]
             if gene:
                 p2g[name] = gene
     # Next we go through the list of CDS's and find the associated proteins
