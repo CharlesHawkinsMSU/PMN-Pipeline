@@ -581,16 +581,21 @@ def subproc_msg(output, procname = "SubCmd"):
 	for msg in newline_re.split(output.decode().rstrip()):
 		message(msg, attn = procname, attn_style = [purple_text, bold_text])
 
-# Gets a unique ID for this run. Bases it on the process ID unless we're running in SLURM, in which case it's based on the job ID
+# Gets a unique ID for this run. Bases it on the process ID unless we're running in SLURM, in which case it's based on the job ID and, if it exists, the array task ID
 def get_run_id():
 	# Different versions of SLURM use either $SLURM_JOB_ID or $SLURM_JOBID, so we need to check both
 	try:
-		return 's-' + os.environ['SLURM_JOB_ID']
+		i = 's-' + os.environ['SLURM_JOB_ID']
 	except KeyError:
 		try:
-			return 's-' + os.environ['SLURM_JOBID']
+			i = 's-' + os.environ['SLURM_JOBID']
 		except KeyError:
 			return 'p-' + str(os.getpid())
+	try:
+		i += '_' + os.environ['SLURM_ARRAY_TASK_ID']
+	except KeyError:
+		pass
+	return i
 
 def open_logfile(config):
 	global logfile

@@ -3,6 +3,7 @@
 from sys import stdout, stderr
 import argparse as ap
 from os import path, listdir
+import pmn
 
 # List of savi files and the number of header lines in each one
 savi_files = {'AIPP.txt':2, 'CAPP.txt':4, 'CVP.txt':2, 'MANUAL.txt':2, 'MCP.txt':2, 'NPP.txt':2, 'UPP.txt':2}
@@ -29,22 +30,15 @@ def main():
         if args.p:
             pgdb_pathways = get_pathways_for_pgdbs(args.p)
             pathways = pgdb_pathways.difference(savi_pathways)
-            info('There are %s unsavitized pathways'%len(pathways))
+            pmn.info('There are %s unsavitized pathways'%len(pathways))
         else:
             pathways = savi_pathways
-            info('There are %s savi pathways'%len(pathways))
+            pmn.info('There are %s savi pathways'%len(pathways))
         if args.x:
             exclude_pathways = get_pathways_for_pgdbs(args.x)
             pathways = pathways.difference(exclude_pathways)
-            info('There are %s non-excluded pathways'%len(pathways))
+            pmn.info('There are %s non-excluded pathways'%len(pathways))
         outfile.write('\n'.join(pathways) + '\n')
-
-def warn(string):
-    if args.q:
-        stderr.write('Warning: ' + string.rstrip() + '\n')
-def info(string):
-    if args.v:
-        stderr.write('Info: ' + string.rstrip() + '\n')
 
 # Returns savi pathway as a set
 def get_savi_pathways(savi_dir):
@@ -61,7 +55,7 @@ def get_savi_pathways(savi_dir):
         filepath = path.join(savi_dir, savi_file)
         try:
             with open(filepath, 'r', errors = 'surrogateescape') as infile:
-                info('Reading %s'%filepath)
+                pmn.info('Reading %s'%filepath)
                 for _ in range(header_lines):
                     next(infile)
                 for line in infile:
@@ -69,9 +63,9 @@ def get_savi_pathways(savi_dir):
                     pwy = line.split('\t')[0]
                     pathways.add(pwy)
         except IOError as e:
-            warn('%s: %s'(filepath, e.strerror))
+            pmn.warn('%s: %s'%(filepath, e.strerror))
             continue
-    info('SAVI has %s pathways'%len(pathways))
+    pmn.info('SAVI has %s pathways'%len(pathways))
     return pathways
 
 # Returns the path to the pgdb default version pathway.dat or None if there is no default-version file
@@ -79,7 +73,7 @@ def get_pgdb_pwy_dat(pgdb_dir):
     try:
         versfile = open(path.join(pgdb_dir, 'default-version'), 'r', errors = 'surrogateescape')
         version = versfile.read().rstrip()
-        info('%s appears to be a pgdb'%pgdb_dir)
+        pmn.info('%s appears to be a pgdb'%pgdb_dir)
     except IOError as e:
         return None
     return path.join(pgdb_dir, version, 'data', 'pathways.dat')
@@ -92,22 +86,22 @@ def get_pathways_for_pgdbs(pgdbs_dir):
         pathways = set()
         for d in listdir(pgdbs_dir):
             dirname = path.join(pgdbs_dir, d)
-            info('Checking %s as a possible pgdb'%dirname)
+            pmn.info('Checking %s as a possible pgdb'%dirname)
             if path.isdir(dirname):
                 pwy_file = get_pgdb_pwy_dat(dirname)
                 if pwy_file is not None:
                     pathways = pathways.union(get_pathways_from_datfile(pwy_file))
                 else:
-                    warn('%s does not appear to be a pgdb'%dirname)
+                    pmn.warn('%s does not appear to be a pgdb'%dirname)
                     continue
-        info('PGDBs in %s have %s pathways in total'%(pgdbs_dir, len(pathways)))
+        pmn.info('PGDBs in %s have %s pathways in total'%(pgdbs_dir, len(pathways)))
         return pathways
 
 def get_pathways_from_datfile(datfile):
     try:
         infile = open(datfile, 'r', errors = 'surrogateescape')
     except IOError as e:
-        warn('%s: %s'%(datfile, e.strerror))
+        pmn.warn('%s: %s'%(datfile, e.strerror))
         return set()
     pathways = set()
     with infile:
@@ -115,7 +109,8 @@ def get_pathways_from_datfile(datfile):
             if line.startswith('UNIQUE-ID'):
                 line = line.rstrip()
                 pathways.add(line.split(' - ')[1])
-    info('%s has %s pathways'%(datfile, len(pathways)))
+    pmn.info('%s has %s pathways'%(datfile, len(pathways)))
     return pathways
 
-# Main code starts here
+if __name__ == '__main__':
+    exit(main())
