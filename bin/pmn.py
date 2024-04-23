@@ -983,7 +983,7 @@ def socket_msg(cmd, socket_path):
 	s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	s.connect(socket_path)
 	s.sendall(cmd.encode())
-	r = s.recv(1024)
+	r = s.recv(65536)
 	s.close()
 	return r.decode().rstrip()
 
