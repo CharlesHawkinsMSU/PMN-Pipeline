@@ -604,7 +604,7 @@ def open_logfile(config):
 		differentiator = 0
 		while path.exists(logfilename):
 			differentiator += 1
-			logfilename = path.join(config['proj-logs-dir'], get_run_id() + '-' + differentiator + '.log')
+			logfilename = path.join(config['proj-logs-dir'], get_run_id() + '-' + str(differentiator) + '.log')
 		logfile = open(logfilename, 'w')
 		open_msg = f'Logfile {logfilename} opened at {time.strftime(time_fmt)}'
 		print(open_msg)
@@ -1095,6 +1095,7 @@ class PathwayTools:
 	def get_org_list(this):
 		org_response = this.send_cmd('(all-orgids)')
 		orglist = whitespace.split(org_response.strip('() \t\n\r'))
+		info(f'Got list of orgids from ptools: {", ".join(orglist)}')
 		return orglist
 
 	def quit_ptools(this):

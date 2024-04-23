@@ -449,7 +449,7 @@ Once fully-built (including providing a Pathway Tools installer), the PMN pipeli
 
 ### E2P2 finds no or almost no enzymes
 
-Symptoms: the .e2p2v5.orxn.pf file is very short or empy; the final PGDB contains no or very few pathways (a typical correct number of pathways is in the 100-300 range)
+Symptoms: the .e2p2v5.orxn.pf file is very short or empy; the final PGDB contains no or very few pathways (for reference, a typical correct number of pathways is in the 100s-500s range)
 
 Cause 1: E2P2 failed partway through creating the output file. Check the pipeline output or, if running in parallel, the log files in the logs directory, to see if E2P2 might have generated an error. Most E2P2 errors will result in no output file being generated at all but it is not impossible that something occurred while writing the file. Not likely, but worth checking.
 
@@ -463,7 +463,11 @@ Using software like BUSCO to assess the genome quality may help in determining i
 
 Cause 4: Nucleic acid FASTA input. It's possible you accidentally provided an input FASTA file with mRNA, cDNA, or gDNA sequences instead of the required amino acid sequences. Manually check the file to see if it contains only A, T, C, G, and U.
 
-Cause 5: Non-FASTA input. Make sure the input file is in FASTA format. Most other formats would generate errors that prevent the pipeline from producing any output PGDB at all but it's not impossible that you have something that looks enough like FASTA to confuse it into trying to run.
+Cause 5: Invalid FASTA formatting. A few FASTA files available "out in the wild" break with the FASTA specification in ways that cause errors for some bioinformatics tools. For example, some files use a . character to mean a translation stop, rather than the * that the spec says they should use, which causes DeepEC to crash. Check for . characters in your fasta sequences. You can write a script or use an advanced text editor to replace . with *, but do so only in lines that don't start with > so that the FASTA headers aren't corrupted in the process. For example the vim command :v/>/s/\./*/g will do this operation.
+
+Another possible problem could be that there is "human-readable formatting" like base numbers at the start of lines and spaces every however-many bases. NCBI puts these into some displays of sequences; these are not intended to be valid FASTA even though they use the FASTA letters. If you have sequences like this, you will have to remove the numbers and spaces, again using a script or advanced text editor to only operate on lines that don't start with >.
+
+Cause 6: Non-FASTA input. Make sure the input file is in FASTA format. Most other formats would generate errors that prevent the pipeline from producing any output PGDB at all but it's not impossible that you have something that looks enough like FASTA to confuse it into trying to run.
 
 ### Out of disk space errors while building the container
 
@@ -480,7 +484,11 @@ PMN curators have encountered cases where a GFF file is inconsistent in terms of
 * Do the same but with parameters to read the CDS-base mappings (-gpf CDS -gg Parent.Parent.Name)
 * Concatenate the two maps together and use this as the input map for the organism
 
-### Glossary
+### PathoLogic reports a "critical error" when creating the protein BLAST DB
+
+This message is normal when running the PMN pipeline. It means that Pathway Tools could not create a blastset for the organism, because the protein sequences are not made available to it. This is not a problem because the PMN pipeline will create the blastsets later using other tools.
+
+## Glossary
 
 #### E2P2 (Ensemble Enzyme Prediction Pipeline)
 
