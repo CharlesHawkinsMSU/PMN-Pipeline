@@ -934,7 +934,7 @@ def log_process(proc, proc_name = 'SubProc'):
 # Start a thread to monitor the given process (as returned by subprocess.Popen) and to print and log all output it produces.
 # NOTE: The thread keeps a reference to the process object you pass in! You must destroy any object with a reference to the thread object (e.g. a PathwayTools object) manually, else the logging process will make your program hang when it should exit
 def start_log_process(proc, proc_name = 'SubProc'):
-	th = threading.Thread(target = log_process, args = [proc, proc_name])
+	th = threading.Thread(target = log_process, args = [proc, proc_name], daemon = True)
 	th.start()
 	return th
 
@@ -983,9 +983,11 @@ def socket_msg(cmd, socket_path):
 	s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	s.connect(socket_path)
 	s.sendall(cmd.encode())
-	r = s.recv(65536)
+	resp = b''
+	while segment := s.recv(1024):
+		resp += segment
 	s.close()
-	return r.decode().rstrip()
+	return resp.decode().rstrip()
 
 # Send a lisp command via the API. Pathway Tools should have been started with the -api flag (NB: not the -python flag). Commands are automatically wrapped in an error handler unless handle_errs is set to False.
 def send_ptools_cmd(cmd, socket_path = '/tmp/ptools-socket', handle_errs = True):

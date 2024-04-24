@@ -18,6 +18,7 @@ def refine_c(config, orgtable, orglist, ptools = None):
         ptools = pmn.PMNPathwayTools(config, args = ['-www'])
     pt_disp = ptools.send_cmd('(sys:getenv "DISPLAY")')
     pmn.info(f'Ptools reports that DISPLAY is {pt_disp}')
+    ptools.send_cmd('(initialize-gui)')
     for org in orglist:
         entry = orgtable[org]
         pmn.info(f'==Running checks for {org}Cyc==')
@@ -26,7 +27,6 @@ def refine_c(config, orgtable, orglist, ptools = None):
         pmn.info(f'==Setting author list for {org}Cyc==')
         ptools.send_cmd(f'(put-slot-values \'{org} \'pgdb-authors \'({entry["Authors"]}))')
         pmn.info(f'==Generating cellular overview for {org}Cyc==')
-        ptools.send_cmd('(initialize-gui)')
         ptools.send_cmd('(update-overview :batch-mode? t :show-progress? nil :web-cel-ov? t)')
         pmn.info(f'==Saving {org}Cyc==')
         ptools.send_cmd('(save-kb)')
