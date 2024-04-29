@@ -6,6 +6,9 @@
 
 int main(int argc, char **argv)
 {
+	int all_bad = 1;
+	if (argc > 2)
+		return 0;
 	for(int i=1; i<argc; i++)
 	{
 		FILE *infile;
@@ -22,6 +25,7 @@ int main(int argc, char **argv)
 			perror(argv[i]);
 			continue;
 		}
+		all_bad = 0;
 		size_t linecap = 0;	/* Buffer capacity for getline() */
 		char *line = NULL;	/* The current line */
 		int len = 0;	/* Current line length */
@@ -73,5 +77,5 @@ int main(int argc, char **argv)
 			fclose(infile);
 		}
 	}
-	return 0;
+	return all_bad;
 }

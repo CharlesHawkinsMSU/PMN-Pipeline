@@ -297,6 +297,8 @@
 	  (write-list-n list '("~%" "	" ";") stream)
 	  (terpri stream)))
 
+(defun write-alist (alist outfile)
+  (print-alist outfile alist))
 (defun print-alist (outfile alist)
   "Writes the given alist to the given filename. Tab-delimited, key then value(s). Accepts proper lists or dotted pairs"
   (flet ((print-alist-to-stream (alist stream)

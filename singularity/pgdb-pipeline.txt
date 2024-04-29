@@ -43,6 +43,9 @@ proj-common-dir = common
 # Directory to save logfiles
 proj-logs-dir = logs
 
+# Filename to save FASTA statistics computed by the fa-stats stage
+proj-fa-stats = fa-stats.txt
+
 # If running as an update to a previous release, set this to the project folder for that previous release; if not then it can be left blank
 previous-version-proj =
 

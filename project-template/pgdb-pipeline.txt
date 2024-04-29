@@ -49,6 +49,9 @@ proj-common-dir = common
 # Directory to save logs
 proj-log-dir = logs
 
+# Filename to save FASTA statistics computed by the fa-stats stage
+proj-fa-stats = fa-stats.txt
+
 # Path to where e2p2 is installed
 e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
 

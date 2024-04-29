@@ -1,4 +1,47 @@
 ; Functions that count things in the database or pull sets of things out from the database
+
+(defun frame-table (frames specs)
+  "Returns a table of the specified data from the given frames, suitable for use with write-alist. Give it a framespec (a frame, class, or list of either) and a list of 2-element specs. Each spec consists of a string used as the column header and either a slot name or a function to be run on the frame. That column will be populated with either that slot for each frame (values converted to strings and multiple values separated with semicolons) or the result of running the given function on each frame"
+  (cons (loop for spec in specs collect (first spec))
+	  (loop for frame in (expand-frameset frames)
+		collect (loop for (header to-get print-fn) in specs
+			      collect (if (functionp to-get)
+					(funcall (or print-fn #'print-frames-nicely) (funcall to-get frame))
+					(format nil "~{~A~^;~}"
+						(gsvs frame to-get)))))))
+`
+
+; Functions to generate reaction formulae with compound IDs
+(defun rxn-cpd-list (rxn slot)
+  "For the given reaction and slot (should be 'left or 'right), gives a list of compounds (as frame IDs) and their coefficients in the reaction equation"
+  (format nil "~{~A~^ + ~}"
+	  (loop for cpd in (gsvs rxn slot)
+		collect (format nil "~A x ~A"
+				(or (get-value-annot rxn slot cpd 'coefficient) 1)
+				(gfh cpd)))))
+
+(defun dir-to-arrow (dir)
+  "Given a direction as appears in the 'reaction-direction slot of a reaction, returns a string representing that direction; <- -> or ="
+  (cond
+    ((find dir '(physiol-left-to-right
+		  irreversible left-to-right
+		  left-to-right)) "->")
+    ((find dir '(physiol-right-to-left
+		  irreversible-right-to-left
+		  right-to-left)) "<-")
+    (t "=")))
+
+(defun rxn-formula (rxn)
+  (format nil "~A ~A ~A"
+	  (rxn-cpd-list rxn 'left)
+	  (dir-to-arrow (gsv rxn 'reaction-direction))
+	  (rxn-cpd-list rxn 'right)))
+
+(defun rxn-formula-list ()
+  "Generates a list of reaction formulae for all reactions using compound IDs"
+  (loop for r in (all-rxns)
+	collect (rxn-formula r)))
+
 (defun orgids-have-frame-table (orgids frames)
   "For the given list of orgids and of frames, makes a table of which PGDBs have each frame"
   (let ((frames (to-handles frames))

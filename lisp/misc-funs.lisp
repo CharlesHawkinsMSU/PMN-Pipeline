@@ -1,5 +1,25 @@
 ; Misc utility functions that are specific to pathway tools (for non-ptools-specific utulity functions, see utils.lisp)
 
+(defun print-handles (framestruct &optional (seps '(";" "," "/")))
+  (cond ((listp framestruct)
+	 (format nil (format nil "~~{~~A~~^~A~~}" (or (first seps) ""))
+		 (loop for el in framestruct
+		       collect (print-handles el (rest seps)))))
+	((coercible-to-frame-p framestruct)
+	 (gfh framestruct))
+	(t (format nil "~A" framestruct))))
+(defun print-frames-nicely (framestruct &optional (seps '(";" "," "/")))
+  (cond ((listp framestruct)
+	 (format nil (format nil "~~{~~A~~^~A~~}" (or (first seps) ""))
+		 (loop for el in framestruct
+		       collect (print-frames-nicely el (rest seps)))))
+	((coercible-to-frame-p framestruct)
+	 (or (gsv framestruct 'accession-1)
+	     (gsv framestruct 'common-name)
+	     (gsv framestruct 'synonyms)
+	     (gfh framestruct)))
+	(t (format nil "~A" framestruct))))
+
 (defun read-flatfile (file)
   "Reads a flat-file and returns (as its first value) a hash of hashes for all frames in the file; outer hash maps frame IDs to frame hahses, frame hash maps key to list of values. Also returns two additional values: a list of frames with no UNIQUE-ID, and a list of lines that couldn't be interpreted (i.e. they did not look like comments, blank lines, /continuations, // delimiters, or key-value pairs)"
   (let ((dat-hash (make-hash-table))

@@ -19,7 +19,7 @@ import refine_c
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages'])
+stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats'])
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = set(['create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset'])
 
@@ -131,9 +131,65 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			pmn.message(pmn.green_text('\nAll checks passed!'))
 		else:
 			pmn.message(pmn.red_text('\nOne or more checks failed; please address the issues before continuing with the pipeline'))
-			if ptools:
-				del ptools
 			exit(1)
+	elif stage == 'fa-stats':
+		reqs = ['fa-countseqs', 'fa-avg', 'fa-goodseqs', 'fa-type']
+		reqs = [path.join(path.dirname(path.abspath(__file__)), exe) for exe in reqs]
+		pmn.check_exists(files = reqs, progname = 'fa-stats') or exit(1)
+		pmn.check_access(reqs, os.X_OK, reason = 'required by fa-stats', ignore_missing = True) or exit(1)
+		outfilepath = config.setdefault('proj-fa-stats', 'fa-stats.txt')
+		def get_fa_stat(exe, fa_file, args = []):
+			result = subprocess.run([path.join(path.dirname(path.abspath(__file__)),exe), fa_file] + args, capture_output = True)
+			if result.returncode != 0:
+				err = result.stderr.decode().strip()
+				pmn.error(err)
+				return err.split(': ')[-1]
+			return result.stdout.strip().decode()
+		try:
+			outfile = open(outfilepath, 'w')
+			pmn.info('Writing FASTA statistics to {outfilepath}')
+			outfile.write('\t'.join(['Orgid', 'Sequence File', 'Sequence Count', 'Avg Sequence Length', 'Sequence Type', 'Percent Good Sequences']) + '\n')
+			for org in orglist:
+				entry = orgtable[org]
+				pmn.info(f'Getting fa-stats for {org}')
+				fa_file = entry['Sequence File']
+				fa_countseqs = get_fa_stat('fa-countseqs', fa_file)
+				try:
+					if int(fa_countseqs) < 10000:
+						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a low number of sequences ({int(fa_countseqs)}). Typical values are on the order of 20,000 or above. This may not be a full proteome for this organism, or it may be a gDNA file')
+				except ValueError:
+					pass
+				fa_avg = get_fa_stat('fa-avg', fa_file)
+				pmn.info(fa_avg)
+				try:
+					if float(fa_avg) < 100:
+						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a low average sequence length ({float(fa_avg)}). Typical values are in the 200s to 500s for plants, up to around the 700s for chlorophytes. You may have truncated sequences (e.g. translated ESTs)')
+					if float(fa_avg) > 1500:
+						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a high average sequence length ({float(fa_avg)}). Typical values are in the 200s to 500s for plants, up to around the 700s for chlorophytes. You may have a gDNA file')
+				except ValueError:
+					pass
+				fa_type = get_fa_stat('fa-type', fa_file).split('\n')[-1].strip()
+				fa_gen_type = fa_type.split(',')[0].split(' ')[0]
+				if fa_gen_type == 'NA':
+					pmn.error(f'FASTA file {fa_file} for orgid {org} appears to be a nucleic acid fasta file. This will not work with the pipeline. An amino acid fasta file is required')
+				elif fa_gen_type == 'Invalid':
+					pmn.error(f'FASTA file {fa_file} for orgid {org} appears to contain invalid FASTA characters. This is likely to cause E2P2 to fail. Check for files that use a . for stop codons (a stop codon is supposed be * but a few files use . contrary to the spec, which will cause DeepEC to crash). Also check for base numbers at the beginning of lines, or spaces within the lines inserted for "readability"; you will have to remove these if present')
+				fa_goodseqs = get_fa_stat('fa-goodseqs', fa_file, args = ['-s']).split(': ')[-1]
+				try:
+					fa_goodseqs_pct = float(fa_goodseqs.split(' ')[0])
+					if fa_goodseqs_pct < 85:
+						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a high percentage of "bad" sequences (100-{fa_goodseqs_pct}%). "Bad" sequences are sequences that don\'t start with a methionine (M) or that contain internal stop codons (*). More than around 15% suggests that there is a problem with the sequencing or translation')
+				except ValueError:
+					pass
+				
+				outfile.write('\t'.join([org, fa_file, fa_countseqs, fa_avg, fa_gen_type, fa_goodseqs]) + '\n')
+			outfile.close()
+				
+		except IOError as e:
+			pmn.error(f'{e.filename}: {e.strerror}')
+			exit(1)
+
+
 	elif stage == 'list':
 		pmn.message(pmn.blue_text('Index\tOrgID'))
 		for org in orglist:
@@ -489,7 +545,3 @@ else:
 	pmn.message(f'Will run {len(stage_list)} stage{"s" if len(stage_list) != 1 else ""}: {stage_andlist}')
 	for stage in stage_list:
 		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools, split_id = args.s)
-	if ptools:
-		# The logging thread has a reference to the ptools object, so we must delete it manually to trigger the code that quits ptools
-		del ptools
-	print()
