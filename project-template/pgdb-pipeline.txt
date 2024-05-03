@@ -37,14 +37,14 @@ ptools-exe = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/
 # Path to the directory where Pathway Tools keeps its (user) PGDBs
 ptools-pgdbs = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/ptools-local/pgdbs/user
 
-# Path to the socket used by Pathway Tools for API access. It should be /tmp/ptools-socket unless you have changed it in ptools' configuration
-ptools-socket = /tmp/ptools-socket
-
 # Path where SAVI is installed; should point to the directory containing the runSAVI script
 savi = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/savi/current
 
 # SAVI common files directory
 proj-common-dir = common
+
+# Directory in which to place the temporary ptools socket files used in communicating with ptools
+proj-sock-dir = sockets
 
 # Directory to save logs
 proj-log-dir = logs

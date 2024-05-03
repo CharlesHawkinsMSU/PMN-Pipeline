@@ -40,6 +40,9 @@ ptools-pgdbs = /pmn/ptools-local/pgdbs/user
 # SAVI common files directory
 proj-common-dir = common
 
+# Directory in which to place the temporary ptools socket files used in communicating with ptools
+proj-sock-dir = sockets
+
 # Directory to save logfiles
 proj-logs-dir = logs
 

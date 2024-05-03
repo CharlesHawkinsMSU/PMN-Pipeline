@@ -17,11 +17,11 @@ import create_savi_citations
 import refine_c
 
 # The standard sequence of stages, used when the user requests a range of stages:
-stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset']
+stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats'])
+stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore'])
 # Stages that require an instance of Pathway Tools to be running:
-stages_needing_ptools = set(['create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset'])
+stages_needing_ptools = set(['create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats'])
 
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
 			  'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
@@ -164,7 +164,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 				try:
 					if float(fa_avg) < 100:
 						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a low average sequence length ({float(fa_avg)}). Typical values are in the 200s to 500s for plants, up to around the 700s for chlorophytes. You may have truncated sequences (e.g. translated ESTs)')
-					if float(fa_avg) > 1500:
+					elif float(fa_avg) > 1500:
 						pmn.warn(f'FASTA file {fa_file} for orgid {org} has a high average sequence length ({float(fa_avg)}). Typical values are in the 200s to 500s for plants, up to around the 700s for chlorophytes. You may have a gDNA file')
 				except ValueError:
 					pass
@@ -189,6 +189,8 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			pmn.error(f'{e.filename}: {e.strerror}')
 			exit(1)
 
+	elif stage == 'env':
+		pmn.message(f'export SINGULARITY_BIND={config.setdefault("ptools-pgdbs", "pgdbs")}:/pgdbs')
 
 	elif stage == 'list':
 		pmn.message(pmn.blue_text('Index\tOrgID'))
@@ -203,37 +205,14 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		for stage in stages_nonsequenced:
 			pmn.message(f'- {pmn.green_text(stage)} - {stage_help.setdefault(stage, "<no help available>")}')
 	elif stage == 'e2p2':
-		if split_id:
-			from split_fasta import get_split_filename
-			os.makedirs(path.join(config['proj-e2p2-dir'], 'splits'), exist_ok = True)
-
-		pmn.message(pmn.blue_text('==Running E2P2=='))
-		e2p2v5_exe = path.join(config['e2p2'], 'e2p2.py')
-		e2p2v4_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
-		if path.exists(e2p2v5_exe):
-			e2p2_exe = e2p2v5_exe
-		else:
-			e2p2_exe = e2p2v4_exe
-		e2p2_cmds = []
-		for org in orglist:
-			entry = orgtable[org]
-			inpath = entry['Sequence File']
-			outpath = entry['Initial PF File']
-			if split_id:
-				pmn.info(f'Running E2P2 on split {split_id} of {org}')
-				infilename = path.split(inpath)[-1]
-				inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
-				inpath = get_split_filename(inpre, split_id)
-				outfilename = path.split(outpath)[-1]
-				outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
-				outpath = get_split_filename(outpre, split_id)
+		def make_e2p2_cmd(e2p2_exe, inpath, outpath, e2p2_version):
 			cmd = [
 					sys.executable,
 					e2p2_exe,
 					'--input', inpath,
 					'--output', outpath
 					]
-			if e2p2_exe is e2p2v4_exe:
+			if e2p2_version == 4:
 				# Command-line options that were required for E2P2 v4 (in v5 this stuff is all in the config file)
 				cmd += [
 					'--blastp', 'blastp',
@@ -248,39 +227,39 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 					cmd += ['--config', config['e2p2-config']]
 				except KeyError:
 					pass
-			if config['parallelism'] == 'slurm':
-				org_masters_dir = path.join(config['proj-masters-dir'], org)
-				try:
-					os.mkdir(org_masters_dir)
-				except FileExistsError:
-					pass
-				slurm_script_path = path.join(org_masters_dir, 'E2P2.slurm.sh')
-				slurm_script = f'''#!/bin/bash
+			return cmd
 
-#SBATCH -J E2P2_{org}
-#SBATCH --partition DPB
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=5000
-#SBATCH --time=1000:00:00
-#SBATCH --mail-type=FAIL
+		if split_id:
+			from split_fasta import get_split_filename
+			os.makedirs(path.join(config['proj-e2p2-dir'], 'splits'), exist_ok = True)
 
-'''
-				try:
-					slurm_script += f'module load {config["module-load"]}\n\n'
-				except KeyError:
-					pass
-				slurm_script += ' '.join(cmd) + '\n'
-				try:
-					with open(slurm_script_path, 'w') as slurm_script_file:
-						slurm_script_file.write(slurm_script)
-				except IOError as e:
-					pmn.error(f'Error creating {org} slurm script {slurm_script_path}: {e.strerror}')
-					exit(1)
+		pmn.message(pmn.blue_text('==Running E2P2=='))
+		e2p2v5_exe = path.join(config['e2p2'], 'e2p2.py')
+		e2p2v4_exe = path.join(config['e2p2'], 'pipeline', 'run_pipeline.py')
+		if path.exists(e2p2v5_exe):
+			e2p2_exe = e2p2v5_exe
+		else:
+			e2p2_exe = e2p2v4_exe
+		e2p2_cmds = []
+		for org in orglist:
+			entry = orgtable[org]
+			if split_id:
+				for split in (range(1, int(config['split-fa-num-files'])+1) if split_id == 'all' else pmn.multi_range(split_id)):
+					inpath = entry['Sequence File']
+					outpath = entry['Initial PF File']
+					pmn.info(f'Running E2P2 on split {split} of {org}')
+					infilename = path.split(inpath)[-1]
+					inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
+					inpath = get_split_filename(inpre, split)
+					outfilename = path.split(outpath)[-1]
+					outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
+					outpath = get_split_filename(outpre, split)
+					e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
+			else:
+				inpath = entry['Sequence File']
+				outpath = entry['Initial PF File']
+				e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
 
-				cmd = ['sbatch', slurm_script_path]
-			e2p2_cmds += [cmd]
 		for e2p2_cmd in e2p2_cmds:
 			pmn.info(' '.join(e2p2_cmd))
 			e2p2_result = pmn.run_external_process(e2p2_cmd, procname = 'E2P2')
@@ -290,7 +269,6 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 
 	elif stage == 'prepare':
 		pmn.message(pmn.blue_text('==Preparing master files=='))
-		print(orglist)
 		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe'], ','.join(orglist)], procname = 'Prepare')
 		if prepare_result != 0:
 			pmn.error('Prepare script failed')
@@ -388,6 +366,30 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			pmn.run_external_process(savi_cmd, procname = 'SAVI')
 		pmn.info(f'SAVI finished, returning to previous directory {prev_wd}')
 		os.chdir(prev_wd)
+	elif stage == 'backup':
+		prev_dir = os.getcwd()
+		backups_dir = path.abspath(config.setdefault('proj-backups-dir', 'intermediate-pgdbs'))
+		os.chdir(config['ptools-pgdbs'])
+		for org in orglist:
+			tarfile = path.join(backups_dir, org.lower()+'.tar.bz2')
+			pmn.info(f'Backing up {org} in {tarfile}')
+			pmn.run_external_process(['tar', 'cjf', tarfile, org.lower()+'cyc'])
+		os.chdir(prev_dir)
+	elif stage == 'restore':
+		prev_dir = os.getcwd()
+		backups_dir = path.abspath(config.setdefault('proj-backups-dir', 'intermediate-pgdbs'))
+		os.chdir(config['ptools-pgdbs'])
+		for org in orglist:
+			org_dir = pmn.dir_for_org(org, config)
+
+			tarfile = path.join(backups_dir, org.lower()+'.tar.bz2')
+			pmn.info(f'Restoring backup of {org} from {tarfile}')
+			try:
+				rmtree(org_dir)
+			except OSError as e:
+				pass
+			pmn.run_external_process(['tar', 'xf', tarfile])
+		os.chdir(prev_dir)
 	elif stage == 'refine-prepare':
 		pmn.message(pmn.blue_text('==Preparing for refine steps=='))
 		create_authors.create_frames(config, orgtable, orglist, ptools = ptools)
@@ -408,6 +410,26 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 	elif stage == 'refine-c':
 		pmn.message(pmn.blue_text('==Running Refine-C=='))
 		refine_c.refine_c(config, orgtable, orglist, ptools)
+	elif stage == 'pgdb-stats':
+		stats = []
+		try:
+			statsfilepath = config.setdefault('pgdb-stats', 'pgdb-stats.txt')
+			statsfile = open(statsfilepath, 'w')
+			for org in orglist:
+				ptools.so(org)
+				num_pathways = ptools.send_cmd('(length (gcai "Pathways"))')
+				num_rxns = ptools.send_cmd('(length (gcai "Reactions"))')
+				num_enz = ptools.send_cmd('(length (all-enzymes))')
+				num_cpds = ptools.send_cmd('(length (gcai "Compounds"))')
+				stats.append([org, num_pathways, num_rxns, num_enz, num_cpds])
+			statsfile.write('\t'.join(['Database ID', 'Pathways', 'Reactions', 'Enzymes', 'Compounds']) + '\n')
+			statsfile.write('\n'.join(['\t'.join(statline) for statline in stats]) + '\n')
+			statsfile.close()
+		except IOError as e:
+			pmn.error(f'{e.filename}: {e.strerror}')
+			exit(1)
+
+
 	elif stage == 'delete':
 		pmn.message('The following PGDBs will be deleted:')
 		for org in orglist:
@@ -417,7 +439,7 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		if really_delete:
 			pmn.message('Deleting PGDBs')
 			for org in orglist:
-				org_dir = path.join(config['ptools-pgdbs'], org.lower()+'cyc')
+				org_dir = pmn.dir_for_org(org, config)
 				pmn.info(f'Deleting {org_dir}')
 				try:
 					rmtree(org_dir)
@@ -545,3 +567,5 @@ else:
 	pmn.message(f'Will run {len(stage_list)} stage{"s" if len(stage_list) != 1 else ""}: {stage_andlist}')
 	for stage in stage_list:
 		run_stage(stage, config, orgtable, orglist, args.proj, ptools = ptools, split_id = args.s)
+	if ptools:
+		del ptools

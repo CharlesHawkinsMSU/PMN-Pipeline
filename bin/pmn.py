@@ -146,6 +146,24 @@ def andlist(l, oxford = True, copula = 'and', quote = None):
 		case _:
 			return f'{", ".join(l[:-1])}{"," if oxford else ""} {copula} {l[-1]}'
 
+def multi_range(instr):
+	for range_spec in instr.split(','):
+		start_end=range_spec.split('-')
+		if len(start_end) == 1:
+			yield int(range_spec)
+		elif len(start_end) == 2:
+			start = int(start_end[0])
+			end = int(start_end[1])
+			if start > end:
+				warn(f'Requested range from {start} to {end} but {start} is greater than {end}; ignoring this range')
+			for i in range(start, end+1):
+				yield i
+		else:
+			raise ValueError(f'Invalid range: "range_spec"')
+
+def dir_for_org(org, config):
+	return path.join(config['ptools-pgdbs'], org.lower()+'cyc')
+
 # Parses an attribute string of the form "attr1=val1;attr2=val2;..." into a dictionary. Used in parsing gff files
 def parse_attrs(attr_str):
 	attr_dict = {}
@@ -308,7 +326,7 @@ def read_var_val_file(filename):
 		try:
 			(key, val) = [s.strip() for s in line.split('=', 1)]
 			if key in d:
-				warn(f'In file {file.name}, variable {var} is defined more than once')
+				warn(f'In file {file.name}, variable {key} is defined more than once')
 			d[key] = val
 		except ValueError:
 			warn(f'line not recognized in {file.name}:\n{line}')
@@ -942,6 +960,7 @@ def start_log_process(proc, proc_name = 'SubProc'):
 def run_external_process(args, env = None, procname = 'SubProc', crash = True):
 	if env is None:
 		env = os.environ
+	info(f'Running command: {' '.join(args)}')
 	proc = subprocess.Popen(args, env = env, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 	log_process(proc, procname)
 	proc.wait()
