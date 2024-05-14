@@ -164,6 +164,7 @@ sub read_pgdb_table
 		$$db_entry{"RXN Map"} ||= "metacyc-rxn-name-mapping";
 		$$db_entry{"PWY Metacyc"} ||= "all_pwy.meta";
 		$$db_entry{"PWY Plantcyc"} ||= "all_pwy.plant";
+		$$db_entry{"Reference DB"} ||= "Plant";
 	}
 	delete $pgdb_table{"/default"};
 	return %pgdb_table;

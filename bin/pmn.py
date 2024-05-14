@@ -960,7 +960,7 @@ def start_log_process(proc, proc_name = 'SubProc'):
 def run_external_process(args, env = None, procname = 'SubProc', crash = True):
 	if env is None:
 		env = os.environ
-	info(f'Running command: {' '.join(args)}')
+	info(f'Running command: {" ".join(args)}')
 	proc = subprocess.Popen(args, env = env, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 	log_process(proc, procname)
 	proc.wait()

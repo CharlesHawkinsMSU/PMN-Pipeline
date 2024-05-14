@@ -65,6 +65,7 @@ foreach my $species (@orglist) {
 	my $pgdb_version = $$entry{"Version"};
 	my $homepage = $$entry{"Homepage"};
 	my $email = $$entry{"Email"};
+	my $refdb = uc $$entry{"Reference DB"};
 
     # create folder for species $species
     mkdir "$masters_dir/$species";
@@ -85,7 +86,7 @@ foreach my $species (@orglist) {
     
     # write organism-params.dat file
     open(OP, ">$masters_dir/$species/organism-params.dat") or die "Cannot open file $masters_dir/$species/organism-params.dat to write.\n";
-    print OP "ID\t$species\nSTORAGE\tFILE\nNAME\t$sp_name\nABBREV-NAME\t$ab_name\nSEQUENCE-SOURCE\t$seq_file\nDOMAIN\t$taxid\nRANK\t|species|\nCODON-TABLE\t1\nMITO-CODON-TABLE\t1\nHOMEPAGE\t$homepage\nEMAIL\t$email\nDBNAME\t$db_name\nNCBI-TAXON-ID\t$taxid\nREF-ORGID\tPLANT\nORG-COUNTER\t$org_counter\n";
+    print OP "ID\t$species\nSTORAGE\tFILE\nNAME\t$sp_name\nABBREV-NAME\t$ab_name\nSEQUENCE-SOURCE\t$seq_file\nDOMAIN\t$taxid\nRANK\t|species|\nCODON-TABLE\t1\nMITO-CODON-TABLE\t1\nHOMEPAGE\t$homepage\nEMAIL\t$email\nDBNAME\t$db_name\nNCBI-TAXON-ID\t$taxid\nREF-ORGID\t$refdb\nORG-COUNTER\t$org_counter\n";
     close OP;
      
     # write dump.master foreach species

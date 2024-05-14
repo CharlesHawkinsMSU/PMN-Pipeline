@@ -19,7 +19,7 @@ import refine_c
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore'])
+stages_nonsequenced = set(['split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata'])
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = set(['create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats'])
 
@@ -366,6 +366,9 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 			pmn.run_external_process(savi_cmd, procname = 'SAVI')
 		pmn.info(f'SAVI finished, returning to previous directory {prev_wd}')
 		os.chdir(prev_wd)
+	elif stage == 'metadata':
+		pmn.info('Updating PGDB metadata')
+		pmn.run_external_process([config['ptools-exe'], '-lisp', '-update-pgdb-metadata'], procname = 'Ptools (metadata)')
 	elif stage == 'backup':
 		prev_dir = os.getcwd()
 		backups_dir = path.abspath(config.setdefault('proj-backups-dir', 'intermediate-pgdbs'))
@@ -438,13 +441,33 @@ def run_stage(stage, config, table, orglist = None, proj = '.', ptools = None, s
 		really_delete = pmn.ask_yesno(f'Really {pmn.red_text("delete")} (all versions of) these {len(orglist)} PGDBs (Y/n)? ', config['_y_flag'], True)
 		if really_delete:
 			pmn.message('Deleting PGDBs')
+			# Delete pgdb directories
 			for org in orglist:
 				org_dir = pmn.dir_for_org(org, config)
 				pmn.info(f'Deleting {org_dir}')
 				try:
 					rmtree(org_dir)
+				except FileNotFoundError:
+					pmn.warn(f'{org_dir} not found')
 				except OSError as e:
 					pmn.error(f'{org_dir}: {e.strerror}')
+			# Delete cached overview files in /tmp/ov
+			tmpfile_re_orglist = '|'.join([re.escape(org.upper()) for org in orglist])
+			tmpfile_re = re.compile(f'{tmpfile_re_orglist}(Z[0-4])?-') # NB: re.match only matches the beginning of a string so a ^ is not required
+			deleted_files = []
+			ov_dir = '/tmp/ov'
+			try:
+				file_list = os.listdir(ov_dir)
+			except IOError:
+				file_list = []
+			for ov_file in file_list:
+				if tmpfile_re.match(ov_file):
+					os.remove(path.join(ov_dir, ov_file))
+					deleted_files.append(ov_file)
+			if deleted_files:
+				pmn.info(f'Deleted cached overview files {pmn.andlist(deleted_files)} from {ov_dir}')
+			else:
+				pmn.info(f'No cached overview files to delete in {ov_dir}')
 		else:
 			pmn.message('PGDBs will not be deleted')
 	elif stage == 'split':
