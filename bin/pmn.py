@@ -147,6 +147,9 @@ def andlist(l, oxford = True, copula = 'and', quote = None):
 			return f'{", ".join(l[:-1])}{"," if oxford else ""} {copula} {l[-1]}'
 
 def multi_range(instr):
+	if type(instr) == int:
+		yield instr
+		return
 	for range_spec in instr.split(','):
 		start_end=range_spec.split('-')
 		if len(start_end) == 1:
@@ -613,6 +616,7 @@ def get_run_id():
 		i += '_' + os.environ['SLURM_ARRAY_TASK_ID']
 	except KeyError:
 		pass
+	i += '-' + threading.get_native_id()
 	return i
 
 def open_logfile(config):
@@ -623,7 +627,7 @@ def open_logfile(config):
 		while path.exists(logfilename):
 			differentiator += 1
 			logfilename = path.join(config['proj-logs-dir'], get_run_id() + '-' + str(differentiator) + '.log')
-		logfile = open(logfilename, 'w')
+		logfile = open(logfilename, 'x')
 		open_msg = f'Logfile {logfilename} opened at {time.strftime(time_fmt)}'
 		print(open_msg)
 		print(open_msg, file = logfile)
@@ -684,7 +688,10 @@ def read_pipeline_files(args):
 				if org not in ptable:
 					error(f'Organism {org} not found in table')
 					exit(1)
-				org_list.append(org)
+				if org in org_list:
+					warn(f'Organism {org} appears multiple times in the requested org list. The organism will only be run once despite this because running the same organism multiple times could cause serious errors and/or incorrect output, especially if running in parallel')
+				else:
+					org_list.append(org)
 		else:
 			org_list = list(ptable.keys())
 		info(f'Got list of orgids from {"command-line args" if args.o else tablefile}, will run the following orgids: {", ".join(org_list)}')
