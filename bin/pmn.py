@@ -617,7 +617,7 @@ def get_run_id():
 		i += '_' + os.environ['SLURM_ARRAY_TASK_ID']
 	except KeyError:
 		pass
-	i += '-' + threading.get_native_id()
+	i += '-' + str(threading.get_native_id())
 	return i
 
 def open_logfile(config):

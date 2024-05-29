@@ -439,13 +439,29 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 			pmn.error(f'{e.filename}: {e.strerror}')
 			exit(1)
 
+	elif stage == 'clean':
+		pmn.info('==Cleaning temporary files==')
 
+		# Delete logs from the logs dir
+		logdir = config['proj-logs-dir']
+		logfiles = os.listdir(logdir)
+		if len(logfiles) > 0:
+			if pmn.ask_yesno(f'Delete {len(logfiles)} logfiles from {logdir}? (y/N)', config['_y_flag'], True):
+				pmn.message('Deleting logfiles')
+				for logfile in logfiles:
+					to_delete = path.join(logdir, logfile)
+					pmn.info(f'Deleting {to_delete}')
+					os.remove(to_delete)
+			else:
+				pmn.message('Will not delete log files')
+		else:
+			pmn.message(f'No logfiles to delete in directory {logdir}')
 	elif stage == 'delete':
 		pmn.message('The following PGDBs will be deleted:')
 		for org in orglist:
 			entry = orgtable[org]
 			pmn.message('  '+pmn.blue_text(f'{org}Cyc') + f' at {path.join(config["ptools-pgdbs"], org.lower())}cyc')
-		really_delete = pmn.ask_yesno(f'Really {pmn.red_text("delete")} (all versions of) these {len(orglist)} PGDBs (Y/n)? ', config['_y_flag'], True)
+		really_delete = pmn.ask_yesno(f'Really {pmn.red_text("delete")} (all versions of) these {len(orglist)} PGDBs (y/N)? ', config['_y_flag'], True)
 		if really_delete:
 			pmn.message('Deleting PGDBs')
 			# Delete pgdb directories
