@@ -7,6 +7,7 @@ import pmn
 import stages
 import concurrent.futures
 import multiprocessing
+import copy
 
 par = ap.ArgumentParser(description = 'Used to run each stage of the PMN release pipeline')
 pmn.add_standard_pmn_args(par, action='run')
@@ -21,11 +22,11 @@ pmn.verbose = args.v
 
 # Executes any and all stages that are waiting in the given stage queue (in parallel for all requested organisms), blocks until all organisms have finished, and clears the queue
 # **modifies stage_queue**
-def execute_queued_stages(stage_queue, config, orgtable, orglist, proj):
+def execute_queued_stages(stage_queue, config, orgtable, orglist, args):
 	fs = []
 	for org in orglist:
 		pmn.info(f'Executing a sequence of stages on {org}: {stage_queue}')
-		fs.append(pool.submit(run_stage_list, stage_queue, config, orgtable, [org], proj))
+		fs.append(pool.submit(run_stage_list, stage_queue, config, orgtable, [org], args))
 	for r in concurrent.futures.as_completed(fs):
 		r.result()
 	stage_queue.clear()
@@ -39,20 +40,21 @@ def start_ptools(stage_list, config):
 	pmn.info(f'Stage list contains refine-c: {"yes" if running_refine_c else "no"}')
 	return pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], x11 = config.setdefault('x-server', 'external'))
 
-def run_stage_list(stage_list, config, orgtable, orglist, proj, split_id = None):
+def run_stage_list(stage_list, config, orgtable, orglist, args):
+	print(args)
 	pmn.info(f'Running stage list: {stage_list}')
 	ptools = None
 	for stage in stage_list:
 		if ptools is None and stage in stages.stages_needing_ptools:
 			ptools = start_ptools(stage_list, config)
-		stages.run_stage(stage, config, orgtable, orglist, proj, ptools = ptools, split_id = split_id)
+		stages.run_stage(stage, config, orgtable, orglist, args = args, ptools = ptools)
 	if ptools:
 		del ptools
 
 # The newproj and fixproj stages are "singleton" stages; they can only be run on their own. Also, we don't read in the config files for these stages because they don't exist yet, so we should check for and deal with them separately before trying to read said config files
 if stages.stages_singleton.intersection(args.stage):
 	if len(args.stage) == 1:
-		stages.run_stage(args.stage[0], None, None, None, args.proj)
+		stages.run_stage(args.stage[0], None, None, None, args)
 	else:
 		pmn.error('The stages {pmn.andlilst(stages.stages_singleton)} should only be run on their own')
 		exit(1)
@@ -75,20 +77,22 @@ else:
 			for stage in stage_list:
 				if stage == 'e2p2':
 					pmn.info('e2p2 stage requires special handling; waiting for all prior stages to finish')
-					execute_queued_stages(stage_queue, config, orgtable, orglist, args.proj)
+					execute_queued_stages(stage_queue, config, orgtable, orglist, args)
 					fs = []
 					for org in orglist:
 						for split in stages.split_range(args.s, config):
-							fs.append(pool.submit(run_stage_list, ['e2p2'], config, orgtable, [org], args.proj, split))
+							e2p2_args = copy.copy(args)
+							e2p2_args.s = split
+							fs.append(pool.submit(run_stage_list, ['e2p2'], config, orgtable, [org], e2p2_args))
 					for r in concurrent.futures.as_completed(fs):
 						r.result()
 				elif stage in stages.stages_nonparallel:
 					pmn.info(f'{stage} stage is non-parallel; waiting for all prior stages to finish')
-					execute_queued_stages(stage_queue, config, orgtable, orglist, args.proj)
-					run_stage_list([stage], config, orgtable, orglist, args.proj)
+					execute_queued_stages(stage_queue, config, orgtable, orglist, args)
+					run_stage_list([stage], config, orgtable, orglist, args)
 				else:
 					stage_queue.append(stage)
 			pmn.info('All remaining stages are parallelizable, queuing them up')
-			execute_queued_stages(stage_queue, config, orgtable, orglist, args.proj)
+			execute_queued_stages(stage_queue, config, orgtable, orglist, args)
 	else:
-		run_stage_list(stage_list, config, orgtable, orglist, args.proj, args.s)
+		run_stage_list(stage_list, config, orgtable, orglist, args)

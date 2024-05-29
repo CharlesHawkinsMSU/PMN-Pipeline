@@ -22,7 +22,7 @@ stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump'
 # Valid stages that are not part of the standard sequence:
 stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata'}
 # Stages that can only be executed on their own, and not part of any stage sequence
-stages_singleton = {'newproj', 'fixproj'}
+stages_singleton = {'newproj'}
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats'}
 # Stages that cannot be run in parallel over the organism list; when running in parallel and we get to one of these stages, we have to wait for all previous stages to complete for all orgs before proceeding
@@ -57,28 +57,30 @@ if __name__ == "__main__":
 	stderr.write('stages.py is a library that contains the PMN pipeline stage definitions and code for running them. It does nothing when executed directly. Use pmn-pipeline.py to run the pipeline\n')
 	exit(1)
 
-def run_stage(stage, config, orgtable, orglist = None, proj = '.', ptools = None, split_id = None):
+def run_stage(stage, config, orgtable, orglist, args, ptools = None):
+	split_id = args.s
+	proj = args.proj
 	pmn.message(f'Running stage "{stage}"')
 	if stage == 'savi-dump':
 		stage = 'dump'
 	elif stage == 'final-dump':
-		run_stage('dump', config, orgtable, orglist, proj, ptools)
-		run_stage('dump-biopax', config, orgtable, orglist, proj, ptools)
+		run_stage('dump', config, orgtable, orglist, args, ptools)
+		run_stage('dump-biopax', config, orgtable, orglist, args, ptools)
 		return 0
 	script_path = path.dirname(path.realpath(__file__))
 	stage = stage.lower()
-	if stage == 'newproj' or stage == 'fixproj':
-		if stage == 'newproj':
-			pmn.message('==Creating new blank project==')
-		else:
+	if stage == 'newproj':
+		if args.f:
 			pmn.message('==Adding any missing project files==')
+		else:
+			pmn.message('==Creating new blank project==')
 		proj_tmpl_path = path.realpath(path.join(script_path, '..', 'project-template'))
 		if not path.exists(proj):
 			os.mkdir(proj)
 		for filename in os.listdir(proj_tmpl_path):
 			src = path.join(proj_tmpl_path, filename)
 			dst = path.join(proj, filename)
-			if not path.exists(dst) or stage == 'newproj':
+			if not path.exists(dst) or not args.f:
 				if not path.isdir(src):
 					copy2(src, dst)
 		for dirname in ['e2p2', 'gff', 'fasta', 'maps-in', 'maps-out', 'pgdb-masters', 'savi/input', 'savi/output', 'blastsets', 'intermediate-pgdbs', 'common', 'sockets', 'pgdbs', 'logs']:
@@ -247,24 +249,28 @@ def run_stage(stage, config, orgtable, orglist = None, proj = '.', ptools = None
 		for org in orglist:
 			entry = orgtable[org]
 			if split_id:
-				pmn.info(f'Assembling e2p2 command for {org}, split {split_id}')
-				pmn.info(f'{split_range(split_id, config)}')
 				for split in split_range(split_id, config):
 					inpath = entry['Sequence File']
 					outpath = entry['Initial PF File']
-					pmn.info(f'Running E2P2 on split {split} of {org}')
 					infilename = path.split(inpath)[-1]
 					inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
 					inpath = get_split_filename(inpre, split)
 					outfilename = path.split(outpath)[-1]
 					outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
 					outpath = get_split_filename(outpre, split)
-					e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
+					if not (args.f and path.exists(outpath)):
+						pmn.info(f'Running E2P2 on split {split} of {org}')
+						e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
+					else:
+						pmn.info(f'Will not run E2P2 on split {split} of {org} because {outpath} exists')
 			else:
-				pmn.info(f'Assembling e2p2 command for {org}')
 				inpath = entry['Sequence File']
 				outpath = entry['Initial PF File']
-				e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
+				if not (args.f and path.exists(outpath)):
+					pmn.info(f'Running E2P2 on {org}')
+					e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
+				else:
+					pmn.info(f'Will not run E2P2 on {org} because {outpath} exists')
 
 		for e2p2_cmd in e2p2_cmds:
 			pmn.info(' '.join(e2p2_cmd))
@@ -282,7 +288,7 @@ def run_stage(stage, config, orgtable, orglist = None, proj = '.', ptools = None
 
 	elif stage == 'create':
 		pmn.message(pmn.blue_text('==Creating PGDBs with PathoLogic=='))
-		create_pgdbs.create_pgdbs(config, orgtable, orglist, ptools)
+		create_pgdbs.create_pgdbs(config, orgtable, orglist, args, ptools)
 	elif stage == 'revise':
 		pmn.message(pmn.blue_text('==Revising E2P2 files with gene IDs=='))
 		# Run revise_pf.py

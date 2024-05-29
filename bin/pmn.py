@@ -563,6 +563,7 @@ def add_standard_pmn_args(par, action = 'operated on'):
 	par.add_argument('--timestamps', action = 'store_true', help = 'Print timestamps for all messages to stdout. Timestamps are always included in the logfile regardless', dest = 'timestamps')
 	par.add_argument('-p', '--proj', default = '.', help = 'Project directory. Defaults to the current working directory', dest = 'proj')
 	par.add_argument('-y', '--yes', action = 'store_true', help = 'Assume yes to all prompts', dest = 'y')
+	par.add_argument('-f', '--fix', '--no-overwrite', action = 'store_true', help = 'Only perform operations when the expected output files don\'t already exist. May be useful to continue from a failed or cancelled sequence of operations without redoing everything. Currently affects the newproj, e2p2, and create stages. Note: Does not check that existing files are correct or valid in any way, merely whether they exist', dest = 'f')
 
 verbose = False # Print "verbose" messages to the console, not just to the logfile
 logfile = None # The open logfile
@@ -797,6 +798,12 @@ def check_access(file_list, access, reason = 'required by the pipeline', ignore_
 			passed = False
 	return passed
 
+def get_pgdb_folder(org, orgtable, config):
+	entry = orgtable[org]
+	pgdbs_folder = config['ptools-pgdbs']
+	cyc_folder = path.join(pgdbs_folder, cyc.lower()+'cyc', entry['Version'])
+
+
 # Checks that all values in the given config dictionary (as produced by read_pipeline_config) are valid and, where applicable, refer to extant files / directories of the correct type. Crashes the program with an error if there are any problems. Used by the pipeline precheck in pgdb-pipeline.py
 def check_pipeline_config(config):
 	passed = True
@@ -926,10 +933,9 @@ def check_pgdb_table(table, config):
 		except KeyError:
 			pass
 		passed &= check_exists(files=files_list, progname=f'the table file {table_file}')
-		pgdb_folder = config['ptools-pgdbs']
-		cyc_folder = path.join(pgdb_folder, cyc.lower()+'cyc')
+		cyc_folder = get_pgdb_folder(cyc, table, config)
 		if path.exists(cyc_folder):
-			warn(f'PGDB {cyc}Cyc from {table_file} already exists at {cyc_folder}. It will be overwritten if you proceed')
+			warn(f'PGDB {cyc}Cyc {entry["Version"]} from {table_file} already exists at {cyc_folder}. It will be overwritten if you proceed')
 	return passed
 
 def check_parallelism(config):

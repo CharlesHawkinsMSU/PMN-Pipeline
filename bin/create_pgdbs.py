@@ -13,13 +13,10 @@ def main():
 	args = par.parse_args()
 
 	(config, orgtable, orglist) = pmn.read_pipeline_files(args)
-	create_pgdbs(config, orgtable, orglist)
+	create_pgdbs(config, orgtable, orglist, args)
 
-def create_pgdbs(config, orgtable, orglist = None, ptools = None):
+def create_pgdbs(config, orgtable, orglist, args, ptools = None):
 	try:
-		if orglist is None:
-			orglist = orgtable.keys()
-		#ptools = config['ptools-exe']
 		print(f'Info: Pathway Tools executable is at {ptools}')
 		masters_folder = config['proj-masters-dir']
 		print(f'Info: Looking for PGDB master files in {masters_folder}\n')
@@ -27,8 +24,12 @@ def create_pgdbs(config, orgtable, orglist = None, ptools = None):
 			ptools = pmn.PMNPathwayTools(config)
 		print(f'ptools: {ptools}')
 		for org in orglist:
-			org_path = path.join(masters_folder, org, '')
 			entry = orgtable[org]
+			pgdb_folder = pmn.get_pgdb_folder(org, orgtable, config)
+			if args.f and path.exists(pgdb_folder):
+				pmn.info(f'Org {org} {entry["Version"]} already exists at {pgdb_folder}; skipping creation of this org')
+				continue
+			org_path = path.join(masters_folder, org, '')
 			use_meta = entry['Also MetaCyc']
 			patho_cmd = f'(batch-pathologic "{entry["Version"]}" "{org_path}" :hole-filler? nil :complex-inference? nil :operon-predictor? nil :tip? nil :do-overview? nil :web-cel-ov? nil :download-publications? t :dump-flat-files-biopax? nil :taxonomic-pruning? t :blast-data? t :omit-name-matching? nil :replace-organism? t :private-org-counter? t :suppress-metadata-saving? t :import-org-proteins-from-metacyc {"t" if use_meta else "NIL"} :import-org-pathways-from-metacyc {"t" if use_meta else "NIL"})'
 			pmn.info(patho_cmd)
