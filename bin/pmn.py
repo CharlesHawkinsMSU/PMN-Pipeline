@@ -397,7 +397,7 @@ recognized_columns = set([
 		'GFF Key', 'GFF Path', 'Species Name', 'NCBI Taxon ID',
 		'Sequence File', 'Unique ID', 'Version', 'Seq Source',
 		'Curator', 'Citation Year', 'START timestamp', 'END timestamp',
-		'Gene Delete', 'Numeric IDs',
+		'Gene Delete', 'Prot Delete', 'Numeric IDs',
 		])
 
 # Reads in one or more PGDB tables (if argument is a list, the tables will be concatinated together), performs appropriate interpolation, and returns a dictionary mapping from orgids ("Database ID" column) to (dictonaries mapping from column name to the value in that column for that orgid). Database IDs starting with a / (e.g. "/phytozome") are presets. Any entry with one or more presets in the "Presets" column (give multiple as,  e.g., "/phytozome/pmn2022") will have those presets' values placed in any column that is blank for that orgid. Presets earlier in the list take precedence. The special /default preset is applied to all orgids with the lowest precedence. Presets can be referenced across files but must be defined before they are used. Also returns a dict from indexes to orgids
@@ -801,7 +801,8 @@ def check_access(file_list, access, reason = 'required by the pipeline', ignore_
 def get_pgdb_folder(org, orgtable, config):
 	entry = orgtable[org]
 	pgdbs_folder = config['ptools-pgdbs']
-	cyc_folder = path.join(pgdbs_folder, cyc.lower()+'cyc', entry['Version'])
+	cyc_folder = path.join(pgdbs_folder, org.lower()+'cyc', entry['Version'])
+	return cyc_folder
 
 
 # Checks that all values in the given config dictionary (as produced by read_pipeline_config) are valid and, where applicable, refer to extant files / directories of the correct type. Crashes the program with an error if there are any problems. Used by the pipeline precheck in pgdb-pipeline.py

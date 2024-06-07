@@ -20,13 +20,13 @@ from split_fasta import get_split_filename, split_fasta
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata'}
+stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check'}
 # Stages that can only be executed on their own, and not part of any stage sequence
 stages_singleton = {'newproj'}
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats'}
 # Stages that cannot be run in parallel over the organism list; when running in parallel and we get to one of these stages, we have to wait for all previous stages to complete for all orgs before proceeding
-stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages'}
+stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean'}
 
 # Help text for each stage
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
@@ -50,7 +50,8 @@ stage_help = {'precheck': 'Runs quick checks on the configuration to make sure p
 			  'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
 			  'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
 			  'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
-			  'list-stages': 'List all valid stages in the pipeline'
+			  'list-stages': 'List all valid stages in the pipeline',
+			  'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
 			  }
 
 if __name__ == "__main__":
@@ -296,6 +297,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		arg_col_gen = [
 				('-n', 'Numeric IDs'),
 				('-gr', 'Gene Delete'),
+				('-pr', 'Prot Delete'),
 				('-r', 'PF File'),
 				('-om', 'Map Out'),
 				]
@@ -446,7 +448,8 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		logdir = config['proj-logs-dir']
 		logfiles = os.listdir(logdir)
 		if len(logfiles) > 0:
-			if pmn.ask_yesno(f'Delete {len(logfiles)} logfiles from {logdir}? (y/N)', config['_y_flag'], True):
+			pmn.info(f'Logs to delete: {", ".join(logfiles)}')
+			if pmn.ask_yesno(f'Delete {len(logfiles)} logfiles in directory "{logdir}"? (y/N)', config['_y_flag'], True):
 				pmn.message('Deleting logfiles')
 				for logfile in logfiles:
 					to_delete = path.join(logdir, logfile)
@@ -455,7 +458,26 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 			else:
 				pmn.message('Will not delete log files')
 		else:
-			pmn.message(f'No logfiles to delete in directory {logdir}')
+			pmn.message(f'No logfiles to delete in directory "{logdir}"')
+
+		# Delete SLURM logs
+		slurm_logs = []
+		slurm_re = re.compile(r'slurm-[0-9]+(_[0-9]+)?.out')
+		for f in os.listdir(args.proj):
+			if slurm_re.match(f):
+				slurm_logs.append(f)
+		if len(f) > 0:
+			pmn.info(f'SLURM logs to delete: {", ".join(slurm_logs)}')
+			if pmn.ask_yesno(f'Delete {len(slurm_logs)} SLURM output logs? (y/N)', config['_y_flag'], True):
+				for f in slurm_logs:
+					pmn.info(f'Deleting {f}')
+					os.remove(f)
+		else:
+			pmn.message('No SLURM logs to delete')
+
+		# Delete e2p2 temp files
+
+
 	elif stage == 'delete':
 		pmn.message('The following PGDBs will be deleted:')
 		for org in orglist:
@@ -528,8 +550,30 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 					exit(1)
 		else:
 			pmn.info('split-fa-num-files not found in config; will not join e2p2 output files')
-	else:
-# Stage wasn't any of the internally-defined stages, so it must refer to a .master file
+	elif stage == 'debug-dumptable':
+		try:
+			dbgtablepath = path.join(args.proj, 'DEBUG-table.txt')
+			pmn.message(f'Writing final table to {dbgtablepath}')
+			with open(dbgtablepath, 'w') as dbgtable:
+				for org in orglist:
+					entry = orgtable[org]
+					dbgtable.write(org + ' = ' + ', '.join([key + ': ' + str(val) for (key, val) in entry.items()]) + '\n')
+		except IOError as e:
+			pmn.error(f'{e.filename}: {e.strerror}')
+			exit(1)
+	elif stage == 'debug-dumpconfig':
+		try:
+			dbgconfpath = path.join(args.proj, 'DEBUG-config.txt')
+			pmn.message(f'Writing final configuration to {dbgconfpath}')
+			with open(dbgconfpath, 'w') as dbgconf:
+				dbgconf.write('Args: ' + str(args) + '\nConfig:\n')
+				for key, val in config.items():
+					dbgconf.write(f'{key}: {val}\n')
+		except IOError as e:
+			pmn.error(f'{e.filename}: {e.strerror}')
+			exit(1)
+
+	else: # Stage wasn't any of the internally-defined stages, so it must refer to a .master file
 		masterfile = stage
 		if not masterfile.endswith('.master'):
 			masterfile = masterfile + '.master'

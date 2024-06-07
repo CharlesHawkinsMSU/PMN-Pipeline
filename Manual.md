@@ -184,19 +184,22 @@ The final PF file produced by the revise step and fed into PathoLogic. If not sp
 
 These columns are used in mapping from protein accessions to gene accessions. The finished database should ideally have gene accessions for each enzyme in addition to the protein accession, but there is no one standard way to represent the mapping from one to the other. These columns in the file are therefore used to specify how to do the mapping.
 
-There are three ways of finding the gene ID for each protein supported by the pipeline: Extract them from the fasta headers, find them from a GFF input file, or take them from a tab-delimited mapping file
+There are three ways of finding the gene ID for each protein supported by the pipeline: Extract them from the fasta headers, find them from a GFF input file, or take them from a tab-delimited mapping file. To select the method used, set the Genes From column in the input table to FASTA, GFF, Map, or None.
 
-There is also a means of auto-generating frame IDs for each protein and gene. Frame IDs are IDs used by Pathway Tools to uniquely identify each database object (e.g. proteins, genes, reactions, pathways, compounds). Auto-generating these for genes and proteins is usually not necessary because the accessions are used by default and this usually works best. The only exception is if the protein or gene IDs are not valid as frame IDs, usually because they are too long; the max length of a frame ID is 40 chars. In this case auto-generated frame IDs can be assigned; see the Numeric IDs column.
+There is also a means of auto-generating frame IDs for each protein and gene. Frame IDs are IDs used by Pathway Tools to uniquely identify each database object (e.g. proteins, genes, reactions, pathways, compounds). Auto-generating these for genes and proteins is usually not necessary because the accessions are used by default and this usually works best. The only exception is if the protein or gene IDs are not valid as frame IDs, usually because they are too long; the max length of a frame ID is 40 chars. It could also be the case that they contain invalid characters for a frame ID, such as '#'. In these cases auto-generated frame IDs can be assigned; see the Numeric IDs column.
+
+Gene Delete and Prot Delete are optional columns available for both FASTA and GFF input. If you put a regular expression in these columns, any text matching the regex will be deleted from the gene or protein accessions taken from the FASTA or GFF file. The common use for this is if the accessions have some extra text associated with them, such as if the gene IDs are formatted as ID=gene:accession1234 where the correct gene ID is "accession1234", in which case you could set "Gene Delete" to "^gene:". These fields are more commonly needed for GFF input but they are available in FASTA mode as well. However you generally should not use Prot Delete with FASTA files because whatever was in front of the protein ID will have been put into E2P2's output file, so if you change it using Prot Delete then the revise step won't be able to find the protein. (TBA: In the future the pipeline may handle Prot Delete for FASTA input by searching the E2P2 output for the original ID and replacing it with the modified one)
 
 ###### Gene mapping from the FASTA header
 
-To extract gene accessions from the fasta header, there are four fields: FASTA Map, FASTA Sep, FASTA Field, and FASTA KV. FASTA Map is a binary column and the master switch for trying to extract gene IDs from the fasta headers; put "Yes" to instruct the pipeline to use this method to extract the gene IDs.
+To extract gene accessions from the fasta header, there are four fields: FASTA Map, FASTA Sep, FASTA Field, and FASTA KV. The columns Gene Delete and Prot Delete may also be used in FASTA or GFF mapping. FASTA Map is a binary column and the master switch for trying to extract gene IDs from the fasta headers; put "Yes" to instruct the pipeline to use this method to extract the gene IDs.
 
 FASTA Sep is the separator that separates fields in the fasta header; usually this is a space, a tab (enter \t for the column), or a vertical bar. It defaults to a space if not specified.
 
 FASTA Field indicates which field contains the gene ID. It can be a named field, e.g. locus for locus=gene12345, or a number if the fields do not have names, in which case the fields will be counted from 0 (the protein accession). So for >prot12345|chr2|gene12345 you would enter 2 for FASTA Field to get gene12345. If not given, the default is "gene"
 
 FASTA KV gives the key-value separator for named fields. For most fasta files it will be = or :. So for gene=gene12345 you'd enter "=", or for locus:gene12345 you'd enter ":". It defaults to "=" if not given, and has no effect if FASTA Field is a number.
+
 
 ###### Gene mapping from a GFF file
 
@@ -253,7 +256,7 @@ The author's last name. Multi-word last names are accepted, as are names with hy
 
 ##### Email
 
-Email at which the author can be reached. Optional. **Will be made public if the PGDB is published to the web**.
+Email at which the author can be reached. Optional. **This email will be made public if you publish PGDB to the web**.
 
 ##### Login-Account
 
@@ -289,7 +292,7 @@ The main homepage of the organization, such as https://msu.edu
 
 ##### email
 
-Contact email for the organizaion. Optional.
+Contact email for the organizaion. Optional. The email will be made public if you publish the PGDB to the web.
 
 ### Run the pipeline
 
@@ -325,10 +328,7 @@ Additionally, several other "stages" are available that aren't part of the stand
 
 This stage creates a new project directory based on a template inside the container. It creates the standard project subdirectories and puts in example config files. By default all of this is placed in the current working directory, but another project directory can be specified using -p; in this case the specified directory will be created if it does not exist. Any existing config files with the default names will be overwritten.
 Note when using -p that the path must be one the container has access to; either it must be a subdirectory of the current working directory or you will have to add the directory to SINGULARITY_BIND.
-
-##### fixproj
-
-This operates the same as newproj, but existing files are not overwritten. It can be used if some needed directories or files are accidentally deleted.
+Note that if you rerun newproj on the same directory it will copy the default config files, overwriting any modifications you have made. If you only need to fix the project directory (i.e. you accidentally deleted some needed directories) without overwrting, use the -f or --fix option; only files that do not already exist will be copied over.
 
 ##### precheck
 
@@ -337,6 +337,21 @@ This stage runs a number of checks on the configuration. It checks that all requ
 [TBA] It also gives warnings for items that won't prevent the pipeline from running but may suggest an error; these include having the same organism ID appear multiple times in the input table(s) with conflicting information; or having multiple PGDBs with the same input files or taxon ID. You should look into any warnings and make sure the configuration was intentional before proceeding.
 
 You should specify a SINGULARITY_BIND path for the pgdbs for this stage, as it will want to check that the pgdbs directory is writeable.
+
+##### fa-stats
+
+This optional stage compiles some statistics on the input FASTA files. Any stats that are too far outside "reasonable" values will generate an error or warning when you run the command, and all stats are saved into a tab-delimted table file called fa-stats.txt (filename can be overridden with the proj-fa-stats option in the config file).  This will contain the following columns:
+
+- Orgid: The Organism ID, from the Database ID column in the input table.
+- Sequence File: The input FASTA being analyzed
+- Sequence Count: How many sequences are in the file; i.e. how many proteins are in the annotation you are using. Reasonable values for plants are from 20,000 or so on up. Much smaller values may indicate you don't have the complete proteome, or that the file is a genomic DNA assembly instead of a protein annotation. Values lower than 10,000 generate a warning.
+- Avg Sequence Length: The average length of sequences in the file. For a protein FASTA for a plant or green alga, reasonable values are anywhere from the 200s to the 700s. Much smaller may indicate that you have truncated sequences (e.g. the sequences are translated ESTs). A bit larger (low thousands) may indicate a CDS file. Much larger may indicate the file is a gDNA assembly. Values lower than 100 or larger than 1,500 generate a warning.
+- Sequence Type: The best guess as to whether this is an amino acid (AA) or nucleic acid (NA) file, based on the characters present. A file will only be diagnosed as NA if all sequence characters are valid NA characters for FASTA, including the various wildcard characters. This column will contain "Invalid" if any sequence contains an invalid FASTA character. Common reasons for seeing "Invalid" are:
+    - The fasta uses a dot "." as the stop codon, rather than the asterisk "*" required by the FASTA spec. This will cause E2P2 to fail, and you should correct the file with an advanced text editor if this is the case.
+    - There is "readability" formatting such as base numbers at the beginning of the line or spaces within the line. This may be the case if sequences were copied from NCBI Nucleotide without setting the format to "fasta". You will need to remove these to use the pipeline.
+- Percent Good Sequences: What percent and how many of the sequences in the file are "good". In this instance, "good" means that they start with a methionine (M) and contain no stops (*) except at the end. This should probably be at least in the high 80% range. Low values may indicate any number of problems, from incorrect machine translation resulting in frameshifts to cDNA input to simple low sequencing quality.
+
+Together these stats can be useful to avoid or diagnose problems in the pipeline caused by the input sequences.
 
 ##### e2p2
 

@@ -43,7 +43,7 @@ def parse_fasta(fafile, gene_key, sep, kv_sep):
     try:
         infile = open(fafile, 'r')
     except IOError as e:
-        pmn.error('%s: %s\n'%fafile, e.strerror)
+        pmn.error('%s: %s\n'%(fafile, e.strerror))
         exit(1)
     prot2gene = {}
     with infile:
@@ -265,6 +265,7 @@ def get_pf_args(arglist = None):
     par.add_argument('-ngp', '--gene-prefix', default = 'G-', help = 'Prefix for the generated gene IDs', dest = 'gp')
     par.add_argument('-d', '--discard-map-ids', action = 'store_true', help = 'If the input mapping file contains gene and protein IDs, discard them and go with either the accessions or, if -n is specified, newly-assigned numeric IDs', dest = 'd')
     par.add_argument('-gr', '--gene-delete', help='Optional regex used to remove unwanted elements from the gene ID as it appears in its field. Any text matching the regex will be removed. So for example if the gene ID is given as g12345:102938:12038:chr3 where only the first part is what you want, you can give -gr \':.*\' to remove the unwanted chromosome coordinates. Applies to gene IDs read from fasta and gff, but not to input mapping files', dest='gd')
+    par.add_argument('-pr', '--prot-delete', help = 'As --gene-delete but for the protein ID', dest = 'pd')
     par.add_argument('--map-only', action = 'store_true', help = 'Only output the output map, do not revise the pf', dest = 'mo')
 
     if arglist:
@@ -292,6 +293,9 @@ def main(args = None):
         gd_re = re.compile(args.gd)
         for prot, gene in prot2gene.items():
             prot2gene[prot] = gd_re.sub('', gene)
+    if args.pd:
+        pd_re = re.compile(args.pd)
+        prot2gene = {pd_re.sub('',prot):gene for (prot, gene) in prot2gene.items()}
     if args.im:
         prot2gene_from_map, gene2id_from_map, prot2id_from_map = parse_input_map(args.im)
         prot2gene.update(prot2gene_from_map)
