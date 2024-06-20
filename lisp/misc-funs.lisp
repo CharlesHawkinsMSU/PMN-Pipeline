@@ -81,6 +81,11 @@
 	kb
 	(find-kb kb)))
 
+(defun try-as-kb (kb)
+  (if (kb-p kb)
+    kb
+    (ignore-errors (find-kb kb))))
+
 (defun as-orgid (orgid)
   "Returns orgid as a orgid. If orgid is a kb, looks up the orgid for it with (kb-orgid); otherwise returns it as-is"
   (if (kb-p orgid)

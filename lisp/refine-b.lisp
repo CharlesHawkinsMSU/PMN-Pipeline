@@ -8,6 +8,20 @@
   "Finds all frames in class for which form evaluates to true; the varuable FRAME is the frame under examination"
   `(loop for frame in ,class when ,form collect frame))
 
+(defun enz-is-e2p2 (enz)
+  (loop for ezr in (gsvs enz 'catalyzes)
+	always (loop for cit in (citations-for-enz-and-enzrs-and-gene enz)
+		     always (excl:match-re e2p2-re cit))))
+
+(defun get-e2p2-enz ()
+  (loop for enz in (all-enzymes)
+	unless (gsv enz 'component-of)
+	unless (gsv enz 'comment)
+	unless (gsv enz 'components)
+	unless (and (setq g (gsv enz 'gene)) (or (gsv g 'comment)))
+	when (enz-is-e2p2 enz)
+	collect enz))
+
 (defun get-old-comp-enz (match-new)
   "Gets the set of enzymes that don't match the given string match-new anywhere in 'NAMES (should be a substring that will be found in all new frame names) and have no experimental evidence (in the frame or its enzrs) and isn't part of a complex"
   (loop for enz in (all-enzymes)

@@ -12,31 +12,35 @@ def main():
     par = ap.ArgumentParser(description = 'This script can either list out all the unsavitized pathways in a PGDB or list out all savitized pathways in the savi input files')
     par.add_argument('-i', '--savi-input', required = True, help = 'The SAVI input directory containing AIPP.txt, etc.', dest = 'i')
     par.add_argument('-o', '--output', required = False, help = 'Where to save the list of pathways. If not given, output is to stdout', dest = 'o')
-    par.add_argument('-p', '--pgdb', '--pgdbs', required = False, help = 'Either a single pgdbd directory or a directory containing one or more of them (if the given directory contains a file called default-version then it is assumed to be a single pgdb). If this option is given, the final output will be a list of pathways that appear in the given pgdb(s) but not in the SAVI input files. If no -p option is given, the final output will instead be a list of all pathways present in the savi input files.', dest = 'p')
-    par.add_argument('-x', '--exclude', required = False, help = 'Ignore pathways that are present in the given PGDB(s). Follows the same rules as -p for finding PGDBs.', dest = 'x')
-    par.add_argument('-q', '--quiet', action = 'store_false', help = 'Suppress warnings', dest = 'q')
-    par.add_argument('-v', '--verbose', action = 'store_true', help = 'Give info messages', dest = 'v')
+    par.add_argument('-p', '--pgdb', '--pgdbs', nargs='*', required = False, help = 'Either a single pgdbd directory or a directory containing one or more of them (if the given directory contains a file called default-version then it is assumed to be a single pgdb). If this option is given, the final output will be a list of pathways that appear in the given pgdb(s) but not in the SAVI input files. If no -p option is given, the final output will instead be a list of all pathways present in the savi input files. Can be given multiple times for the union of PGDBs in all given directories', dest = 'p')
+    par.add_argument('-x', '--exclude', nargs = "*", required = False, help = 'Ignore pathways that are present in the given PGDB(s). Follows the same rules as -p for finding PGDBs.', dest = 'x')
     args = par.parse_args()
-    if args.o is None or args.o == '-':
+    savi_pathways(args.i, args.p, args.o, args.x)
+
+def savi_pathways(savi_indir, pgdb_in, outfilename, exclude = []):
+    if outfilename is None or outfilename == '-':
         outfile = stdout
     else:
         try:
-            outfile = open(args.o, 'w', errors = 'surrogateescape')
+            outfile = open(outfilename, 'w', errors = 'surrogateescape')
         except IOError as e:
-            stderr.write('Error: %s: %s\n'%(args.o, e.strerror))
-
+            pmn.error('%s: %s\n'%(outfilename, e.strerror))
+            exit(1)
     with outfile:
-        savi_pathways = get_savi_pathways(args.i)
-        if args.p:
-            pgdb_pathways = get_pathways_for_pgdbs(args.p)
-            pathways = pgdb_pathways.difference(savi_pathways)
+        savi_pathways = get_savi_pathways(savi_indir)
+        if pgdb_in:
+            pathways = set()
+            for pgdb_indir in pmn.as_list(pgdb_in):
+                pgdb_pathways = get_pathways_for_pgdbs(pgdb_indir)
+                pathways.update(pgdb_pathways)
+            pathways.difference_update(savi_pathways)
             pmn.info('There are %s unsavitized pathways'%len(pathways))
         else:
             pathways = savi_pathways
             pmn.info('There are %s savi pathways'%len(pathways))
-        if args.x:
-            exclude_pathways = get_pathways_for_pgdbs(args.x)
-            pathways = pathways.difference(exclude_pathways)
+        for exclude_dir in pmn.as_list(exclude):
+            exclude_pathways = get_pathways_for_pgdbs(exclude_dir)
+            pathways.difference_update(exclude_pathways)
             pmn.info('There are %s non-excluded pathways'%len(pathways))
         outfile.write('\n'.join(pathways) + '\n')
 

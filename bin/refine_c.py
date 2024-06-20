@@ -18,7 +18,8 @@ def refine_c(config, orgtable, orglist, ptools = None):
         ptools = pmn.PMNPathwayTools(config, args = ['-www'])
     pt_disp = ptools.send_cmd('(sys:getenv "DISPLAY")')
     pmn.info(f'Ptools reports that DISPLAY is {pt_disp}')
-    #ptools.send_cmd('(initialize-gui)')
+    if not config.setdefault('no-init-gui', false):
+        ptools.send_cmd('(initialize-gui)')
     for org in orglist:
         entry = orgtable[org]
         pmn.info(f'==Running checks for {org}Cyc==')

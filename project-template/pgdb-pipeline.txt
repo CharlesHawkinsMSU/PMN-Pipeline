@@ -13,6 +13,9 @@ proj-e2p2-dir = e2p2
 # Directory in which to put the savi input and output (should contain input and output subdirectories)
 proj-savi-dir = savi
 
+# File to save the output of savi-check. The savi-check step should be run after savi-dump and finds newly-predicted pathways that need to be savitized (i.e. assigned rules for when to keep them and whether to add them to all plants). The list of pathways will be saved to the file listed here
+savi-check-output = to-savitize.txt
+
 # Directory for gff files for each genome. May not be needed; they can be used to generate an amino-acid fasta from a fasta from the (nucleic acid) genome if no amino acid fasta was provided; and they can be used to get the gene / locus accession associated with each protein in the amino acid fasta if that information is not in the fasta header
 proj-gff-dir = gff
 

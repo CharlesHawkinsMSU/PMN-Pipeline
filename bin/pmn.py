@@ -146,6 +146,19 @@ def andlist(l, oxford = True, copula = 'and', quote = None):
 		case _:
 			return f'{", ".join(l[:-1])}{"," if oxford else ""} {copula} {l[-1]}'
 
+# Convert the input value to a list. None returns an empty list. Iterables other than strings return themselves converted to a list. Strings and non-iterables return themselves put into a one-item list
+def as_list(val):
+	if val is None:
+		return []
+	elif isinstance(val, str):
+		return [val]
+	else:
+		try:
+			iter(val)
+			return list(val)
+		except TypeError:
+			return [val]
+
 def multi_range(instr):
 	if type(instr) == int:
 		yield instr

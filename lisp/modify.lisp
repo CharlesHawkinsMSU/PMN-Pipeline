@@ -1,4 +1,82 @@
 ; Lisp functions that modify things in the kb
+(defvar *new-frames* (make-hash-table :test 'equal))
+(defparameter subform-ev-codes
+  (hash-literal '("Purified Protein Expressed in Native Host" 'EV-EXP-IDA-PURIFIED-PROTEIN-NH) 
+		'("Partially-Purified Protein from Native Host" 'EV-EXP-IDA-PART-PURIFIED-PROTEIN-NH)
+		'("Unpurified Protein from Native Host" 'EV-EXP-IDA-UNPURIFIED-PROTEIN-NH)
+		'("Purified Protein Expressed in Heterologous Host" 'EV-EXP-IDA-PURIFIED-PROTEIN-HH)
+		'("Partially-Purified Protein from Heterologous Host" 'EV-EXP-IDA-PART-PURIFIED-PROTEIN-HH)
+		'("Unpurified Protein from Heterologous Host" 'EV-EXP-IDA-UNPURIFIED-PROTEIN-HH)))
+(defun read-enzrxn-submission-form (formfile kb &key (refkb 'plant))
+  "Read in the PMN submission form, specifically the \"Reactions Catalyzed\" sheet. Two header lines are expected and will be ignored. The colums are protein accession, reaction ID, activity name, citation, evidence code, direction. The database to curate into (should be a kb or orgid) must be given. For this reason you will have to split the file by species first if it contains multiple species. Enzymes will be searched for in the kb you specify. If found the enzrxns will be searched for. If found, the requested citation will be added. If no enzrxn is found, new ones will be created. If no enzyme is found, a new one will be created. In any case, the new data will be copied into plantcyc (or another refkb you specify; give :refkb NIL to suppress). If there is no existing PMN db for your species, give a taxon frame id as kb. Usually these are TAX-12345 where 12345 is the NCBI taxon ID, but check plantcyc for the taxon frame, as a small number are ORG-12345 where 12345 is some other number (not the taxon ID). In this case, the enzyme will be curated into plantcyc."
+  (let* ((refkb (as-kb refkb))
+	 (actual-kb (ignore-errors (as-kb kb)))
+	 (taxid (if actual-kb
+		  (first (get-frame-direct-parents (as-orgid actual-kb)))
+		  (if (ignore-errors (instance-all-instance-of-p kb 'tax-1))
+		    kb
+		    (error (format nil "kb argument ~A is neither an orgid, a kb, nor a taxon frame in ~A" kb refkb)))))
+	 (file-contents (cddr (read-alist formfile)))
+	 (kb-to-search (or actual-kb refkb)))
+    (so (as-orgid kb-to-search))
+    (make-indexes-if-needed)
+    (format t "~A~%" file-contents)
+    (loop for (prot-acc rxn-id activity-name citation ev-desc direction . remainder) in file-contents
+	  for prot = (find-or-create-protein prot-acc)
+	  for ezr = (find-or-create-enzrxn prot rxn-id)
+	  for ev-code = (or (gethash ev-desc subform-ev-codes)
+			    (error (format nil "Evidence \"~A\" not recognized" ev-desc)))
+	  do (add-enzrxn-citation-replacing-e2p2 ezr citation ev-code))))
+
+(defparameter e2p2-re (excl:compile-re "^E2P2PMN"))
+(defparameter colon-re (excl:compile-re ":"))
+
+(defun add-enzrxn-citation-replacing-e2p2 (enzr pmid code)
+  "For the given enzymatic-reaction, add a citation to the given pmid with the given evidence code. If a matching citation exists already it will not be replaced. Any comp citations that cite E2P2 will be removed"
+  (unless
+    (loop for citation in (gsvs enzr 'citations)
+	  with rv = t
+	  do (setq cit-components (excl:split-re citation colon-re))
+	  when (excl:match-re e2p2-re citation)
+	  do (remove-slot-value enzr 'citations citation)
+	  when (and (string-equal (first cit-components) pmid)
+		    (string-equal (second cit-components) code))
+	  do (setq rv nil)
+	  finally (return rv))
+    (add-slot-value enzr 'citations (format nil "~A:~A" pmid code))))
+
+
+
+
+(defun find-or-create-protein (accession &key (kb (current-kb)))
+  "Finds and returns a protein with the given accession, or makes one if it doesn't exist"
+  (let ((kb (as-kb kb)))
+    (so (as-orgid kb))
+    (setq index (gethash (as-orgid kb) *prot-index*))
+    (or (gethash accession index)
+	(prog1 
+	  (setq newprot (create-frame (symbol accession) :direct-types '(|Polypeptides|)))
+	  (put-slot-value newprot 'accession-1 accession)
+	  (puthash accession newprot index)
+	  (add-to-set newprot *new-frames*)))))
+
+(defun find-or-create-enzrxn (prot rxn &key (kb (current-kb)))
+  "Finds and returns the enzrxn linking prot to rxn, or makes one if it doesn't exist"
+  (let ((kb (as-kb kb)))
+    (so (as-orgid kb))
+    (setq rxn (coerce-to-frame rxn))
+    (setq prot (coerce-to-frame prot))
+    (or (loop for ezr in (gsvs prot 'catalyzes)
+	      when (eq (coerce-to-frame (gsv ezr 'reaction)) rxn)
+	      return ezr)
+	(prog1
+	  (setq ezr (create-frame (generate-instance-name '|Enzymatic-Reactions|)
+				  :direct-types '(|Enzymatic-Reactions|)))
+	  (put-slot-value ezr 'enzyme prot)
+	  (put-slot-value ezr 'reaction rxn)
+	  (add-to-set ezr *new-frames*)))))
+	
+
 
 (defparameter citation-re (excl:compile-re "^[ \\t\"[]*([^ \\t\"\\]:]+)") "For extracting a citation from 'CITATION slots and annotations. The first group is the citation. To find the frame you should string-upcase the result and concatenate PUB- in front of it (accomplished with the (pub-frame) function)")
 (defparameter pub-re (excl:compile-re "^PUB-"))

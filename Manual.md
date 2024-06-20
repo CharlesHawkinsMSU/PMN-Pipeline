@@ -460,7 +460,7 @@ This command will return immediately; the jobs will be put into the queue to be 
 
 Once fully-built (including providing a Pathway Tools installer), the PMN pipeline container will include all software and data it needs to run. You may, however, substitute your own external installation of any of these tools or data if desired.
 
-## Troubleshooting
+## Tips and Troubleshooting
 
 ### E2P2 finds no or almost no enzymes
 
@@ -502,6 +502,20 @@ PMN curators have encountered cases where a GFF file is inconsistent in terms of
 ### PathoLogic reports a "critical error" when creating the protein BLAST DB
 
 This message is normal when running the PMN pipeline. It means that Pathway Tools could not create a blastset for the organism, because the protein sequences are not made available to it. This is not a problem because the PMN pipeline will create the blastsets later using other tools.
+
+### Case-sensitivity
+
+The pipeline is intended to be run on a Linux system and with *very* rare exceptions Linux filesystems are case-sensitive, so if a file is called "file.txt" then you cannot refer to it as "File.txt", or you will not successfully find the file. It also means that it is possible to create, e.g., "file.txt", "File.txt", and "FILE.TXT" in the same directory, though this is not good practice in most cases as it can easily lead to confusion.
+
+More tricky is the case-sensitivity of the Frame IDs used by pathway tools. The organism IDs (Database ID in the PGDB table), pathway IDs in the SAVI files (e.g. PWY-1234), and the Frame ID columns in authors.txt and organizations.txt are all examples of frame IDs. Frame IDs are used by the Pathway Tools software which is written in Common Lisp, and thus Frame IDs are Lisp symbols. Symbols in lisp are used as funciton names, variable names, and simply as general-purpose identifiers. Lisp is at its heart a case-sensitive language that pretends to be case-insensitive in most instances. Specifically, any symbol that is given to Lisp's parser will be converted to upper-case before it is interpreted, unless it is enclosed in vertical bar characters like |this|. 
+
+Finally, most of the rest of the pipeline is written in Python and a small amount in Perl, Bash, and Java, and all of these are case-sensitive languages. And more to the point, all filenames and data, including those used as Lisp symbols in the Lisp / Pathway Tools code, are treated as strings in the Python/Perl/etc. code, making them case-sensitive regardless.
+
+What all this means is that Database IDs (a.k.a. OrgIDs), pathway/reaction/compound names, and author / organization frame IDs will be treated case-sensitively *sometimes*. So when dealing with them, you should:
+- Be consistent in referring to them by case; i.e. if you call your organism MyAwesomePlantCyc in the PGDB table, don't refer to it as mYaWesOMEpLanTcYC elsewhere.
+- Don't give different PGDBs the same database ID differentiated only by case; so don't try to create MyAwesomePlantCyc and also myawesomeplantcyc as a separate databse
+- Be aware that the pipeline may output MYAWESOMEPLANTCYC at times, and MyAwesomePlantCyc at others. Also the directory where your PGDB lives will be called myawesomeplantcyc. Just because.
+- Be aware that by convention we *make* author IDs in particular case-sensitive and lower-case by enclosing them in vertical bars, because that's how Pathway Tools assigns these IDs by default when you carete them using its GUI. So you'll see author IDs as |hawkins| |rhee| etc. in the default config files. You aren't required to follow this convention if you don't want to; you can put e.g. Smith in the Frame ID column of authors.txt and the Authors column of the PGDB table and both will be interpreted as SMITH internally but it will all still work.
 
 ## Glossary
 

@@ -192,6 +192,12 @@
       (1+ num)
       1))
 
+(defun hash-literal (&rest args)
+  "Make a hash table out of the given 2-ples. So (hash-literal (\"a\" \"b\") (\"c\" \"d\")) will return a hash-table with \"a\" mapped to \"b\" and \"c\" mapped to \"d\""
+  (loop for (key val) in args with ht = (make-hash-table :test 'equal)
+	do (puthash key val ht)
+	finally (return ht)))
+
 (defun inc-hash-count (key hash)
   "Increment the number stored in hash under key, treating NIL as 0"
   (setf (gethash key hash) (1+ (gethash key hash 0))))

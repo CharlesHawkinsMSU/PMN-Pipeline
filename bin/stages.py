@@ -15,18 +15,19 @@ import create_authors
 import create_savi_citations
 import refine_c
 import revise_pf
+import savi_pathways
 from split_fasta import get_split_filename, split_fasta
 
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check'}
+stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check', 'savi-check'}
 # Stages that can only be executed on their own, and not part of any stage sequence
-stages_singleton = {'newproj'}
+stages_singleton = {'newproj', 'lisp'}
 # Stages that require an instance of Pathway Tools to be running:
-stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats'}
+stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats', 'metadata'}
 # Stages that cannot be run in parallel over the organism list; when running in parallel and we get to one of these stages, we have to wait for all previous stages to complete for all orgs before proceeding
-stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean'}
+stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean', 'savi-check'}
 
 # Help text for each stage
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
@@ -351,6 +352,15 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 			pmn.info(f'Args to revise_pf: {arglist}')
 			args = revise_pf.get_pf_args(arglist)
 			revise_pf.main(args)
+	elif stage == 'savi-check':
+		pmn.message(pmn.blue_text('==Checking for pathways needing SAVItization=='))
+		savi_in_dir = path.join(config['savi'], 'input')
+		savi_check_out = config.setdefault("savi-check-output", "to-savitize.txt")
+		exclude_dir = config.setdefault('savi-exclude', None)
+		pgdb_dirs = [pmn.dir_for_org(org, config) for org in orglist]
+		pmn.info(f'SAVI input dir: {savi_in_dir}; PGDB dir: {config["ptools-pgdbs"]}; {"exclude PGDBs from: " + exclude_dir if exclude_dir else ""}; output to {savi_check_out}')
+		savi_pathways.savi_pathways(savi_in_dir, pgdb_dirs, savi_check_out, exclude_dir)
+
 	elif stage == 'savi-prepare':
 		pmn.message(pmn.blue_text('==Preparing files to run SAVI=='))
 		savi_prepare.savi_prepare(config, orgtable, orglist, proj)
@@ -377,7 +387,9 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		os.chdir(prev_wd)
 	elif stage == 'metadata':
 		pmn.info('Updating PGDB metadata')
-		pmn.run_external_process([config['ptools-exe'], '-lisp', '-update-pgdb-metadata'], procname = 'Ptools (metadata)')
+		#pmn.run_external_process([config['ptools-exe'], '-lisp', '-update-pgdb-metadata'], procname = 'Ptools (metadata)')
+		# We may be in Singularity and therefore ptools is installed on a read-only filesystem. Therefore we should only update the user PGDB metadata; using the -update-pgdb-metadata flag will attempt to also update the metadata for the biocyc pgdbs and will therefore fail when it can't write to that location. So we have to manually use the lisp function to update the metadata
+		ptools.send_cmd(f'(update-pgdb-metadata-kb (sri:get-pathname (get-ptools-local-pathname) :offset \'("pgdbs" "user")))')
 	elif stage == 'backup':
 		prev_dir = os.getcwd()
 		backups_dir = path.abspath(config.setdefault('proj-backups-dir', 'intermediate-pgdbs'))
