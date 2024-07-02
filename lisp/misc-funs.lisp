@@ -1,5 +1,22 @@
 ; Misc utility functions that are specific to pathway tools (for non-ptools-specific utulity functions, see utils.lisp)
 
+(defun make-frame-index (class slots &key include-subclasses? downcase?)
+  "Creates an index of all members of the given frame class using the given list of slots. Returns a hash from slot-values to a list of frames with that value in any of the given slots"
+  (loop for frame in (append (when include-subclasses? (get-class-all-subs class))
+			     (get-class-all-instances class))
+	with table = (make-hash-table :test 'equal)
+	do (loop for slot in (as-list slots)
+		 do (loop for val in (if (eq slot t)
+				       (list (get-frame-handle frame))
+				       (get-slot-values frame slot))
+			  for val-str = (format nil "~A" val)
+			  when downcase?
+			  do (setq val-str (string-downcase val-str))
+			  do (puthash val-str (union (list (gfh frame)) (gethash val-str table)) table)))
+	finally (return table)))
+
+
+
 (defun print-handles (framestruct &optional (seps '(";" "," "/")))
   (cond ((listp framestruct)
 	 (format nil (format nil "~~{~~A~~^~A~~}" (or (first seps) ""))

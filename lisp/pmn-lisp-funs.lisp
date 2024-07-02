@@ -21,6 +21,7 @@
   (load (concat *pmn-lisp-folder* "compare-pgdbs.lisp"))
   (load (concat *pmn-lisp-folder* "check-enzr.lisp"))
   (load (concat *pmn-lisp-folder* "ravi.lisp"))
+  (load (concat *pmn-lisp-folder* "savi.lisp"))
   )
 (load-pmn-funs)
 (so 'meta)

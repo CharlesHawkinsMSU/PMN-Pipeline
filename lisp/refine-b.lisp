@@ -13,6 +13,31 @@
 	always (loop for cit in (citations-for-enz-and-enzrs-and-gene enz)
 		     always (excl:match-re e2p2-re cit))))
 
+(defun get-e2p2-ezrs ()
+  (loop for ezr in (gcai '|Enzymatic-Reactions|)
+	when (loop for cit in (citations-for-enz-and-enzrs-and-gene ezr)
+		     always (excl:match-re e2p2-re cit))
+	collect ezr))
+
+(defun orphan-genes ()
+  (loop for g in (all-genes) unless (gsv g 'product) unless (gsv g 'comment) collect g))
+
+(defun delete-old-e2p2-predictions (&key orphan-genes-okay?)
+  (let ((e2 (get-e2p2-enz))
+	(e2z (get-e2p2-ezrs))
+    (if (and (not orphan-genes-okay?) (> (length (orphan-genes)) 0))
+      (format t "Orphan genes before start~%")
+      (progn
+	(loop for ez in e2z
+	      do (format t "Deleting frame ~A~%" (gfh ez))
+	      do (delete-frame-and-dependents ez))
+	(loop for e in e2
+	      do (format t "Deleting frame ~A~%" (gfh e))
+	      do (delete-frame-and-dependents e))
+	(loop for g in (orphan-genes)
+	      do (format t "Deleting frame ~A~%" (gfh g))
+	      do (delete-frame-and-dependents g)))))))
+
 (defun get-e2p2-enz ()
   (loop for enz in (all-enzymes)
 	unless (gsv enz 'component-of)

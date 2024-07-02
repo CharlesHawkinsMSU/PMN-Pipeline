@@ -1,5 +1,29 @@
 ; General lisp utility functions, not specific to Pathway Tools
 
+(defparameter tab-re (excl:compile-re "\\t"))
+(defparameter whitespace-re (excl:compile-re "[\\t ]+"))
+(defun read-table-with-header-as-list (tablefile &key (inner-split ";"))
+  "Given a tab-separated table file with a header row, this will read it in as a list of plists. Each plist will represent a row of the table. The keys of the plist will each be one of the header column names, converted to a symbol, and the values will be the contents of that column for the row. So for example, a table with \"ID First Last\" as the header row and two data rows, \"1 Jenny McZample\" and \"2 John Doe\", will return '((:ID \"1\" :FIRST \"Jenny\" :LAST \"McZample\") (:ID \"2\" :FIRST \"John\" :LAST \"Doe\"))"
+  (from-file-or-stream tablefile
+		       (let* ((header (read-tabbed-keyword-line stream)))
+			 (for-lines-in-file stream
+					    collect (loop for field in (excl:split-re tab-re line)
+							  for hfield in header
+							  do (format t "[~A]" field)
+							  collect hfield
+							  collect field)))))
+
+(defun read-tabbed-keyword-line (filestream)
+  (let ((line (read-line filestream nil 'eof)))
+    (when (stringp line)
+      (loop for field in (excl:split-re tab-re line)
+	    collect (symbol (string-upcase field))))))
+
+(defun read-tabbed-line (file)
+  (let ((line (read-line stream nil 'eof)))
+    (when (stringp line)
+      (excl:split-re tab-re line))))
+
 (defun yn (bool)
   (if bool "Y" "N"))
 
@@ -232,7 +256,7 @@
         (loop while (setq s (read fd NIL)) do (format t "s: ~A~%" s) (count-funs-in-list s fn-counts))
         fn-counts))))
 
-(defun read-alist (file &key nil-value (sep "\\t") (limit 0)) 
+(defun read-alist (file &key nil-value (sep tab-re) (limit 0)) 
   (for-lines-in-file file collect (loop for field in (excl::split-re sep line :limit limit)
 										collect (if (equal field nil-value) nil field))))
 (defun assoc-every (item alist)
