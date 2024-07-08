@@ -8,44 +8,106 @@
   "Finds all frames in class for which form evaluates to true; the varuable FRAME is the frame under examination"
   `(loop for frame in ,class when ,form collect frame))
 
-(defun enz-is-e2p2 (enz)
+(defparameter *console-update-interval* 500)
+(defun delete-old-e2p2-citations (cur-re)
+  (format t "Removing old e2p2 citations from enzrxns~%")
+  (loop for ezr in (all-enzrxns)
+	with n = (length (all-enzrxns))
+	for i from 1 to n
+	when (= 0 (mod i *console-update-interval*))
+	do (format t "~A / ~A~%" i n)
+	count (loop for cit in (gsvs ezr 'citations)
+		    when (excl:match-re e2p2-re cit)
+		    unless (excl:match-re cur-re cit)
+		    do (remove-slot-value ezr 'citations cit)
+		    and count t)))
+
+(defun delete-unsupported-enzrs ()
+  (format t "Removing enzrxns that are now unsupported~%")
+  (loop for ezr in (all-enzrxns)
+	with n = (length (all-enzrxns))
+	for i from 1 to n
+	when (= 0 (mod i *console-update-interval*))
+	do (format t "~A / ~A~%" i n)
+	when (= 0 (length (gsvs ezr 'citations)))
+	do (delete-frame-and-dependents ezr)
+	and count t))
+
+(defun delete-unsupported-enzymes ()
+  (format t "Removing enzymes that are now unsupported~%")
+  (loop for p in (gcai '|Proteins|)
+	with n = (length (gcai '|Proteins|))
+	for i from 1 to n
+	when (= 0 (mod i *console-update-interval*))
+	do (format t "~A / ~A~%" i n)
+	unless (or (gsv p 'component-of)
+		   (gsv p 'catalyzes)
+		   (gsv p 'citations)
+		   (gsv p 'comment)
+		   (gsv p 'appears-in-left-side-of)
+		   (gsv p 'appears-in-right-side-of))
+	do (delete-frame-and-dependents p)
+	and count t))
+
+(defun delete-orphan-genes ()
+  (format t "Removing genes that are now unsupported~%")
+  (loop for g in (orphan-genes)
+	with n = (length (orphan-genes))
+	for i from 1 to n
+	when (= 0 (mod i *console-update-interval*))
+	do (format t "~A / ~A~%" i n)
+	do (delete-frame-and-dependents g)
+	count t))
+
+(defun delete-old-e2p2-predictions (current-year)
+  (format t "Deleted ~A citations~%Deleted ~A enzymatic-reactions~%Deleted ~A enzymes~%Deleted ~A genes~%"
+	  (delete-old-e2p2-citations (excl:compile-re (format nil "^E2P2PMN~A" current-year)))
+	  (delete-unsupported-enzrs)
+	  (delete-unsupported-enzymes)
+	  (delete-orphan-genes)))
+
+(defun enz-is-e2p2 (enz cur-re)
   (loop for ezr in (gsvs enz 'catalyzes)
 	always (loop for cit in (citations-for-enz-and-enzrs-and-gene enz)
-		     always (excl:match-re e2p2-re cit))))
+		     always (and (excl:match-re e2p2-re cit)
+				 (not (excl:match-re cur-re cit))))))
 
-(defun get-e2p2-ezrs ()
+(defun get-e2p2-ezrs (cur-re)
   (loop for ezr in (gcai '|Enzymatic-Reactions|)
 	when (loop for cit in (citations-for-enz-and-enzrs-and-gene ezr)
-		     always (excl:match-re e2p2-re cit))
+		     always (and (excl:match-re e2p2-re cit)
+				 (not (excl:match-re cur-re cit))))
 	collect ezr))
 
-(defun orphan-genes ()
-  (loop for g in (all-genes) unless (gsv g 'product) unless (gsv g 'comment) collect g))
-
-(defun delete-old-e2p2-predictions (&key orphan-genes-okay?)
-  (let ((e2 (get-e2p2-enz))
-	(e2z (get-e2p2-ezrs))
-    (if (and (not orphan-genes-okay?) (> (length (orphan-genes)) 0))
-      (format t "Orphan genes before start~%")
-      (progn
-	(loop for ez in e2z
-	      do (format t "Deleting frame ~A~%" (gfh ez))
-	      do (delete-frame-and-dependents ez))
-	(loop for e in e2
-	      do (format t "Deleting frame ~A~%" (gfh e))
-	      do (delete-frame-and-dependents e))
-	(loop for g in (orphan-genes)
-	      do (format t "Deleting frame ~A~%" (gfh g))
-	      do (delete-frame-and-dependents g)))))))
-
-(defun get-e2p2-enz ()
+(defun get-e2p2-enz (cur-re)
   (loop for enz in (all-enzymes)
 	unless (gsv enz 'component-of)
 	unless (gsv enz 'comment)
 	unless (gsv enz 'components)
 	unless (and (setq g (gsv enz 'gene)) (or (gsv g 'comment)))
-	when (enz-is-e2p2 enz)
+	when (enz-is-e2p2 enz cur-re)
 	collect enz))
+
+(defun orphan-genes ()
+  (loop for g in (all-genes) unless (gsv g 'product) unless (gsv g 'comment) collect g))
+
+;(defun delete-old-e2p2-predictions (current-year &key orphan-genes-okay?)
+;  (let* ((e2p2-cur-re (excl:compile-re (format nil "^E2P2PMN~A" current-year)))
+;	(e2 (get-e2p2-enz e2p2-cur-re))
+;	(e2z (get-e2p2-ezrs e2p2-cur-re)))
+;    (if (and (not orphan-genes-okay?) (> (length (orphan-genes)) 0))
+;      (format t "Orphan genes before start~%")
+;      (progn
+;	(loop for ez in e2z
+;	      do (format t "Deleting frame ~A~%" (gfh ez))
+;	      do (delete-frame-and-dependents ez))
+;	(loop for e in e2
+;	      do (format t "Deleting frame ~A~%" (gfh e))
+;	      do (delete-frame-and-dependents e))
+;	(loop for g in (orphan-genes)
+;	      do (format t "Deleting frame ~A~%" (gfh g))
+;	      do (delete-frame-and-dependents g))))))
+
 
 (defun get-old-comp-enz (match-new)
   "Gets the set of enzymes that don't match the given string match-new anywhere in 'NAMES (should be a substring that will be found in all new frame names) and have no experimental evidence (in the frame or its enzrs) and isn't part of a complex"

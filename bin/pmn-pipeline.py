@@ -14,6 +14,7 @@ pmn.add_standard_pmn_args(par, action='run')
 par.add_argument('stage', nargs = '+', help = 'Which stage of the pipeline to run. Valid stages are: newproj, precheck, e2p2, prepare, create, dump, dump-biopax, savi, refine-a, refine-b, refine-c, newversion, overview, checker, blastset')
 par.add_argument('-s', '--split-id', help = 'Which part of the split fasta(s) to run E2P2 on. Used when running in parallel after splitting each fasta into many parts. You need to have run the split stage with fa-split set to some number in the config file.', dest = 's')
 par.add_argument('-l', '--parallel', action = 'store_true', help = 'Run tasks in parallel; use the max-parallel-tasks option in pgdb-pipeline.txt to control the max number of parallel processes', dest = 'l')
+par.add_argument('-k', '--check', help = 'Checks the output of the given stages instead of running them', dest = 'k')
 
 args = par.parse_args()
 pmn.verbose = args.v

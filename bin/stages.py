@@ -251,20 +251,12 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		for org in orglist:
 			entry = orgtable[org]
 			if split_id:
-				for split in split_range(split_id, config):
-					inpath = entry['Sequence File']
-					outpath = entry['Initial PF File']
-					infilename = path.split(inpath)[-1]
-					inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
-					inpath = get_split_filename(inpre, split)
-					outfilename = path.split(outpath)[-1]
-					outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
-					outpath = get_split_filename(outpre, split)
+				for (inpath, outpath) in splits_for_org(config, orgtable, org, split_id):
 					if not (args.f and path.exists(outpath)):
-						pmn.info(f'Running E2P2 on split {split} of {org}')
+						pmn.info(f'Running E2P2 on split {inpath} for {org}')
 						e2p2_cmds.append(make_e2p2_cmd(e2p2_exe, inpath, outpath, 5 if e2p2_exe is e2p2v5_exe else 4))
 					else:
-						pmn.info(f'Will not run E2P2 on split {split} of {org} because {outpath} exists')
+						pmn.info(f'Will not run E2P2 on split {inpath} for {org} because {outpath} exists')
 			else:
 				inpath = entry['Sequence File']
 				outpath = entry['Initial PF File']
@@ -596,6 +588,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 			masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
 			perl_env = os.environ.copy()
 			perl_env['PTOOLS-ACCESS-SOCKET']=ptools.pt_socket
+			perl_env['PMN_ORGLIST'] = args.o
 			pmn.info(f'Perl environment: {perl_env}')
 			#mf_result = subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env=perl_env, capture_output = True)
 			#pmn.subproc_msg(mf_result.stdout)
@@ -646,3 +639,17 @@ def compile_stage_list(requested_stages):
 # Given a request for a set of splits to run, usually from the -s argument, converts it into a range or pmn.multi_range that can be iterated over
 def split_range(split_req, config):
 	return range(1, int(config['split-fa-num-files'])+1) if split_req == 'all' else pmn.multi_range(split_req)
+
+# Generator that iterates over the splits for a given org. Yields 2-ples of (Nth split fasta file, Nth split E2P2 pf file)
+def splits_for_org(config, orgtable, org, split_req):
+	entry = orgtable[org]
+	for split in split_range(split_req, config):
+		inpath = entry['Sequence File']
+		outpath = entry['Initial PF File']
+		infilename = path.split(inpath)[-1]
+		inpre = path.join(config['proj-fasta-dir'], 'splits', infilename)
+		inpath = get_split_filename(inpre, split)
+		outfilename = path.split(outpath)[-1]
+		outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
+		outpath = get_split_filename(outpre, split)
+		yield (inpath, outpath)

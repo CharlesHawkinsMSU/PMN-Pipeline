@@ -613,7 +613,7 @@ def warn(msg):
 
 newline_re = re.compile(r'\r?\n')
 def subproc_msg(output, procname = "SubCmd"):
-	for msg in newline_re.split(output.decode().rstrip()):
+	for msg in newline_re.split(output.decode(errors='replace').rstrip()):
 		message(msg, attn = procname, attn_style = [purple_text, bold_text])
 
 # Gets a unique ID for this run. Bases it on the process ID unless we're running in SLURM, in which case it's based on the job ID and, if it exists, the array task ID

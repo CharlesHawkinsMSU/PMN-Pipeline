@@ -1,4 +1,6 @@
 ; Lisp functions that modify things in the kb
+
+; The functions read-enzrxn-submission form, add-enzrxn-citation-replacing-e2p2, find-or-create-protein, find-or-create-enzrxn, and find-or-import-rxn are part of the system for importing the PMN Enzyme Submission form. To use this system, separate out the submissions for one species and save to a TSV file. swith to the appropriate KB and call read-enzrxn-submission-form on that file
 (defvar *new-frames* (make-hash-table :test 'equal))
 (defparameter subform-ev-codes
   (hash-literal '("Purified Protein Expressed in Native Host" "EV-EXP-IDA-PURIFIED-PROTEIN-NH") 
@@ -42,27 +44,30 @@
 	  with rv = nil
 	  do (setq cit-components (excl:split-re citation colon-re))
 	  when (excl:match-re e2p2-re citation)
-	  do (remove-slot-value enzr 'citations citation)
+	  do (format t "Removing E2P2 citation ~A from ~A~%" citation (gfh enzr))
+	  and do (remove-slot-value enzr 'citations citation)
 	  when (and (string-equal (first cit-components) pmid)
 		    (string-equal (second cit-components) code))
-	  do (setq rv t)
+	  do (format t "Enzrxn ~A already has the citation we want: ~A~%" (gfh enzr) citation)
+	  and do (setq rv t)
 	  finally (return rv))
+    (format t "Adding citation ~A:~A to ~A~%" pmid code (gfh enzr))
     (add-slot-value enzr 'citations (format nil "~A:~A" pmid code))))
-
-
-
 
 (defun find-or-create-protein (accession &key (kb (current-kb)))
   "Finds and returns a protein with the given accession, or makes one if it doesn't exist"
   (let ((kb (as-kb kb)))
     (so (as-orgid kb))
     (setq index (gethash (as-orgid kb) *prot-index*))
-    (or (gethash accession index)
+    (or (prog1
+	  (setq foundprot (gethash accession index))
+	  (when foundprot (format t "Found protein ~A~%" accession)))
 	(prog1 
 	  (setq newprot (create-frame (symbol accession) :direct-types '(|Polypeptides|)))
 	  (put-slot-value newprot 'accession-1 accession)
 	  (puthash accession newprot index)
-	  (add-to-set newprot *new-frames*)))))
+	  (add-to-set newprot *new-frames*)
+	  (format t "Created protein ~A~%" accession)))))
 
 (defun find-or-create-enzrxn (prot rxn &key (kb (current-kb)))
   "Finds and returns the enzrxn linking prot to rxn, or makes one if it doesn't exist"
@@ -72,12 +77,14 @@
     (setq prot (coerce-to-frame prot))
     (or (loop for ezr in (gsvs prot 'catalyzes)
 	      when (eq (coerce-to-frame (gsv ezr 'reaction)) rxn)
-	      return ezr)
+	      do (format t "Found ~A linking ~A to ~A~%" (gfh ezr) (gfh prot) (gfh rxn))
+	      and return ezr)
 	(prog1
 	  (setq ezr (create-frame (generate-instance-name '|Enzymatic-Reactions|)
 				  :direct-types '(|Enzymatic-Reactions|)))
 	  (put-slot-value ezr 'enzyme prot)
 	  (put-slot-value ezr 'reaction rxn)
+	  (format t "Created ~A linking ~A to ~A~%" (gfh ezr) (gfh prot) (gfh rxn))
 	  (add-to-set ezr *new-frames*)))))
 
 (defun find-or-import-rxn (rxn-id &key (refkb '(plant meta)))
