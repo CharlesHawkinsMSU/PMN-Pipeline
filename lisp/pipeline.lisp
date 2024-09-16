@@ -1,7 +1,7 @@
 (defparameter pmn13 '(WheatD Ahypochondriacus Amborella Cashew Pineapple Acoerulea Ahalleri Alyrata Ara Asparagus Sugarbeet Bstricta Brachypodium Oilseedrape Boleracea_capitata Boleracea_oleracea Brapa_fpsc Chinesecabbage Cgigantea Cacuminata Csativa_pk Cgrandiflora Crubella Cannuum Papaya Croseus Quinoa Chlamy Czofingiensis Carietinum_icc4958 Clementine Sweetorange Csubellipsoidea Ccapsularis Cucumber Carrot Carnation Drotundata Egrandis Esalsugineum Fvesca_vesca Soy Graimondii Sunflower Barley Hop Kfedtschenkoi Klaxiflora Lperrieri Flax Ljaponicus Mdomestica Cassava Mpolymorpha Mtruncatula Mcommoda Mpusilla Mguttatus Msinensis Banana Ntabacum_tn90 Oeuropaea_sylvestris Othomaeum Obrachyantha Oglaberrima Opunctata Orufipogon Oryza Olucimarinus Phallii Switchgrass Paxillaris Commonbean Moss Poplar Ppersica Castorbean Rchinensis Rmultiflora Redsage Selaginella Setaria Sviridis Tomato Eggplant Spennellii Potato Sorghumbicolor Sfallax Soleracea Spirodela Tparvula Cocoa Redclover Breadwheat WheatA Grape Vcarteri Corn Zmarina) "A list of all species in PMN13")
 (defparameter pmn14 '(Ler Acoerulea Pineapple WheatD Ahalleri Ahypochondriacus Alyrata Cashew Asparagus Ara Amborella Mosobamboo Brachypodium Sugarbeet Boleracea_capitata Brapa_fpsc Oilseedrape Boleracea_oleracea Chinesecabbage Bstricta Carietinum_icc4958 Cacuminata Pigeonpea Cgigantea Csativa_pk Clementine Cgrandiflora Cvariabilis Muskmelon Ccapsularis Papaya Quinoa Chlamy Croseus Crubella Cucumber Sweetorange Tea Csubellipsoidea Czofingiensis Ccampestris Carnation Carrot Drotundata Egrandis Esalsugineum Fvesca_vesca Mtruncatula Sacredlotus Spiderflower Corkoak Mdomestica Ginkgo Soy Graimondii Sunflower Rubbertree Barley Hop Tomato Kfedtschenkoi Klaxiflora Lperrieri Ljaponicus Lettuce Flax Cassava Mguttatus Mpolymorpha Mpusilla Msinensis Mcommoda Banana Ntabacum_tn90 Rchinensis Oeuropaea_sylvestris Olucimarinus Obarthii Obrachyantha Oglaberrima Olongistaminata Omeridionalis Onivara Opunctata Orufipogon Oryza Othomaeum Sweetcherry Datepalm Cannuum Paxillaris Phallii Mbalbisiana Moss Ppersica Oilpalm Poplar Switchgrass Commonbean Europeanpear Valleyoak Castorbean Rmultiflora Redsage Sorghumbicolor Sfallax Setaria Eggplant Selaginella Spennellii Soleracea Spirodela Wildsugarcane Potato Sviridis Cocoa Redclover Tparvula Breadwheat WheatA Vcarteri Grape Watermelon Corn Zmarina) "A list of all species in PMN14")
 (defparameter pmn15 '(Stora Ler Acoerulea Pineapple WheatD Ahalleri Ahypochondriacus Alyrata Cashew Asparagus Ara Amborella Mosobamboo Brachypodium Sugarbeet Boleracea_capitata Brapa_fpsc Oilseedrape Boleracea_oleracea Chinesecabbage Bstricta Carietinum_icc4958 Cacuminata Pigeonpea Cgigantea Csativa_pk Clementine Cgrandiflora Cvariabilis Muskmelon Ccapsularis Papaya Quinoa Chlamy Croseus Crubella Cucumber Sweetorange Tea Csubellipsoidea Czofingiensis Ccampestris Carnation Carrot Drotundata Egrandis Esalsugineum Fvesca_vesca Mtruncatula Sacredlotus Spiderflower Corkoak Mdomestica Ginkgo Soy Graimondii Sunflower Rubbertree Barley Hop Tomato Kfedtschenkoi Klaxiflora Lperrieri Ljaponicus Lettuce Flax Cassava Mguttatus Mpolymorpha Mpusilla Msinensis Mcommoda Banana Ntabacum_tn90 Rchinensis Oeuropaea_sylvestris Olucimarinus Obarthii Obrachyantha Oglaberrima Olongistaminata Omeridionalis Onivara Opunctata Orufipogon Oryza Othomaeum Sweetcherry Datepalm Cannuum Paxillaris Phallii Mbalbisiana Moss Ppersica Oilpalm Poplar Switchgrass Commonbean Europeanpear Valleyoak Castorbean Rmultiflora Redsage Sorghumbicolor Sfallax Setaria Eggplant Selaginella Spennellii Soleracea Spirodela Wildsugarcane Potato Sviridis Cocoa Redclover Tparvula Breadwheat WheatA Vcarteri Grape Watermelon Corn Zmarina) "A list of all species in PMN15")
-(defparameter pmn16 '(Stora Ler Acoerulea Pineapple WheatD Ahalleri Ahypochondriacus Alyrata Cashew Asparagus Ara Amborella Mosobamboo Brachypodium Sugarbeet Boleracea_capitata Brapa_fpsc Oilseedrape Boleracea_oleracea Chinesecabbage Bstricta Carietinum_icc4958 Cacuminata Pigeonpea Cgigantea Csativa_pk Clementine Cgrandiflora Cvariabilis Muskmelon Ccapsularis Papaya Quinoa Chlamy Croseus Crubella Cucumber Sweetorange Tea Csubellipsoidea Czofingiensis Ccampestris Carnation Carrot Drotundata Egrandis Esalsugineum Fvesca_vesca Mtruncatula Sacredlotus Spiderflower Corkoak Mdomestica Ginkgo Soy Graimondii Sunflower Rubbertree Barley Hop Tomato Kfedtschenkoi Klaxiflora Lperrieri Ljaponicus Lettuce Flax Cassava Mguttatus Mpolymorpha Mpusilla Msinensis Mcommoda Banana Ntabacum_tn90 Rchinensis Oeuropaea_sylvestris Olucimarinus Obarthii Obrachyantha Oglaberrima Olongistaminata Omeridionalis Onivara Opunctata Orufipogon Oryza Othomaeum Sweetcherry Datepalm Cannuum Paxillaris Phallii Mbalbisiana Moss Ppersica Oilpalm Poplar Switchgrass Commonbean Europeanpear Valleyoak Castorbean Rmultiflora Redsage Sorghumbicolor Sfallax Setaria Eggplant Selaginella Spennellii Soleracea Spirodela Wildsugarcane Potato Sviridis Cocoa Redclover Tparvula Breadwheat WheatA Vcarteri Grape Watermelon Corn Zmarina) "A list of all species in PMN16")
+(defparameter pmn16 '(Stora Ler Acoerulea Pineapple WheatD Ahalleri Ahypochondriacus Alyrata Cashew Asparagus Ara Amborella Mosobamboo Brachypodium Sugarbeet Boleracea_capitata Brapa_fpsc Oilseedrape Boleracea_oleracea Chinesecabbage Bstricta Carietinum_icc4958 Cacuminata Pigeonpea Cgigantea Csativa_pk Clementine Cgrandiflora Cvariabilis Muskmelon Ccapsularis Papaya Quinoa Chlamy Croseus Crubella Cucumber Sweetorange Tea Csubellipsoidea Czofingiensis Ccampestris Carnation Carrot Drotundata Egrandis Esalsugineum Fvesca_vesca Mtruncatula Sacredlotus Spiderflower Corkoak Mdomestica Ginkgo Soy Graimondii Sunflower Rubbertree Barley Hop Tomato Kfedtschenkoi Klaxiflora Lperrieri Ljaponicus Lettuce Flax Cassava Mguttatus Mpolymorpha Mpusilla Msinensis Mcommoda Banana Ntabacum_tn90 Rchinensis Oeuropaea_sylvestris Olucimarinus Obarthii Obrachyantha Oglaberrima Olongistaminata Omeridionalis Onivara Opunctata Orufipogon Oryza Othomaeum Sweetcherry Datepalm Cannuum Paxillaris Phallii Mbalbisiana Moss Ppersica Oilpalm Poplar Switchgrass Commonbean Europeanpear Valleyoak Castorbean Rmultiflora Redsage Sorghumbicolor Sfallax Setaria Eggplant Selaginella Spennellii Soleracea Spirodela Wildsugarcane Potato Sviridis Cocoa Redclover Tparvula Breadwheat WheatA Vcarteri Grape Watermelon Corn Zmarina Garlic Aagrestis_Bonn Aagrestis_oxford Apunctatus Aangustus SweetWormwood Jackfruit Breadfruit Afilliculoides Camelina Draba Teff AppleRingAcacia Strawberry GamNui Alyssum Moringa PocketWaterLily MexicanAvocado HaasAvocado HuskTomato BlackPepper Rosemary Watermoss Rye CoastRedwood Vanilla BambaraBean) "A list of all species in PMN16")
 (defparameter pmn14-new '(Ler Pigeonpea Tea Cvariabilis Watermelon Muskmelon Ccampestris Oilpalm Ginkgo Rubbertree Lettuce Mbalbisiana Sacredlotus Obarthii Olongistaminata Omeridionalis Onivara Datepalm Mosobamboo Sweetcherry Europeanpear Valleyoak Corkoak Wildsugarcane Spiderflower))
 (defparameter plants '(Ler Acoerulea Pineapple WheatD Ahalleri Ahypochondriacus Alyrata Cashew Asparagus Ara Amborella Mosobamboo Brachypodium Sugarbeet Boleracea_capitata Brapa_fpsc Oilseedrape Boleracea_oleracea Chinesecabbage Bstricta Carietinum_icc4958 Cacuminata Pigeonpea Cgigantea Csativa_pk Clementine Cgrandiflora Muskmelon Ccapsularis Papaya Quinoa Croseus Crubella Cucumber Sweetorange Tea Ccampestris Carnation Carrot Drotundata Egrandis Esalsugineum Fvesca_vesca Mtruncatula Sacredlotus Spiderflower Corkoak Mdomestica Ginkgo Soy Graimondii Sunflower Rubbertree Barley Hop Tomato Kfedtschenkoi Klaxiflora Lperrieri Ljaponicus Lettuce Flax Cassava Mguttatus Mpolymorpha Msinensis Banana Ntabacum_tn90 Rchinensis Oeuropaea_sylvestris Obarthii Obrachyantha Oglaberrima Olongistaminata Omeridionalis Onivara Opunctata Orufipogon Oryza Othomaeum Sweetcherry Datepalm Cannuum Paxillaris Phallii Mbalbisiana Moss Ppersica Oilpalm Poplar Switchgrass Commonbean Europeanpear Valleyoak Castorbean Rmultiflora Redsage Sorghumbicolor Sfallax Setaria Eggplant Selaginella Spennellii Soleracea Spirodela Wildsugarcane Potato Sviridis Cocoa Redclover Tparvula Breadwheat WheatA Grape Watermelon Corn Zmarina) "A list of all species in PMN14")
 (defparameter coralcyc '(Xenia Spistillata Nvectensis Hvulgaris Epallida Adigitifera) "A list of all cnideria species in the coralcyc project")
@@ -12,22 +12,22 @@
 
 ; Functions for updating drupal info
 (defun export-drupal-table (pgdbs file)
-  "Writes a table file with the PGDB IDs, species names, versions, and counts of pathways, reactions, enzymes, compounds, and citations"
+  "Writes a table file with the PGDB IDs, species names, versions, and counts of pathways, reactions, enzymes, compounds, and citations. This file can then be given to the python program drupal_table.py to generate the final drupal table"
   (to-file-or-stream file
-					 (print-alist
-					   stream
-					   (cons '("Cyc" "TaxName" "Version" "Pathways" "Enzymes" "Reactions" "Compounds" "Citations")
-							 (loop-orgids pgdbs
-							   collect (list
-										 org
-										 (org-name)
-										 (kb-version (find-kb org))
-										 (length (gcai '|Pathways|))
-										 (length (gcai '|Proteins|))
-										 (length (gcai '|Reactions|))
-										 (length (gcai '|Compounds|))
-										 (length (gcai '|Publications|)))
-							   closing)))))
+		     (print-alist
+		       stream
+		       (cons '("Cyc" "TaxName" "Version" "Pathways" "Enzymes" "Reactions" "Compounds" "Citations")
+			     (loop-orgids pgdbs
+					  collect (list
+						    org
+						    (org-name)
+						    (kb-version (find-kb org))
+						    (length (gcai '|Pathways|))
+						    (length (gcai '|Proteins|))
+						    (length (gcai '|Reactions|))
+						    (length (gcai '|Compounds|))
+						    (length (gcai '|Publications|)))
+					  closing)))))
 
 ; refine-a functions
 (defun e2p2-enzrxn-citations (citation &key (kb (current-kb)))
@@ -306,6 +306,13 @@
 	(format stream  "Compound_id	Compound_common_name	Compound_synonyms	Molecular_weight	Chemical_formula	Smiles	Links	EC	Reaction_equation	Pathway~%")
 	(loop for c in (frames-referenced-as-cpds) do (pmn-dump-compound c stream))))
 
+(defun pmn-dump-pathways (file)
+  "Does the custom PMN pathway dump for one orgid"
+  (to-file-or-stream
+	file
+	(format stream "Pathway-id	Pathway-name	Reaction-id	EC	Protein-id	Protein-name	Gene-id	Gene-name~%")
+	(loop for p in (all-pathways) do (pmn-dump-pathway p stream))))
+
 (defun pmn-dump-compound (c stream)
   "Returns a line for compound c for use in (pmn-dump-compounds)"
   (loop for r in (reactions-of-compound c)
@@ -321,6 +328,20 @@
 							(or (gsv r 'ec-number) (format nil "~S" (gfh r)))
 							(get-name-string r :strip-html? t)
 							(get-name-string p :strip-html? t)))))
+(defun pmn-dump-pathway (p stream)
+  (loop for r in (reactions-of-pathway p)
+	do (loop for e  in (enzymes-of-reaction r)
+		 for g = (get-slot-value e 'gene)
+		 do (format stream "~S	~A	~A	~A	~A	~A	~A	~A~%"
+			    (get-frame-handle p)
+			    (get-name-string p :strip-html? t)
+			    (get-frame-handle r)
+			    (get-slot-value r 'ec-number)
+			    (get-frame-handle e)
+			    (get-name-string e :strip-html? t)
+			    (get-frame-handle g)
+			    (get-name-string g :strip-html? t)))))
+
 (defun frames-referenced-as-cpds ()
   "Returns a list of all frames referenced as if they were compounds in at least one pathway"
   (loop for p in (gcai '|Pathways|)

@@ -39,9 +39,9 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 	ec_numbers_cmd = f'(to-file-or-stream "{ec_names_file}" (format stream "# ENZYME nomenclature database Version: {date}~%")(print-alist stream (loop for ec in (get-class-all-instances "EC-Numbers") collect (list (gsv ec \'ec-id) (gsv ec \'common-name)))))'
 	ptools.send_cmd(ec_numbers_cmd)
 
-	pmn.info('Generating {main_ref}cyc-rxn-name-mapping')
+	pmn.info(f'Generating {main_ref}cyc-rxn-name-mapping')
 	ptools.so(main_ref)
-	ref_names_file = path.join(common_dir, "{main_ref}-rxn-name-mapping")
+	ref_names_file = path.join(common_dir, f"{main_ref}-rxn-name-mapping")
 	ptools.send_cmd(f'(setq eckb (find-kb \'ec-numbers))')
 	ptools.send_cmd(f'(to-file-or-stream "{ref_names_file}" (format stream "# ENZYME nomenclature database Version: #{main_ref}Cyc Version: ~%" (kb-version (current-kb)))(print-alist stream (loop for r in (get-class-all-instances "Reactions") for cn = (gsv r \'common-name) for name = (if cn cn (if (coercible-to-frame-p (setq ec (get-slot-value r \'ec-number)) :kb eckb) (get-slot-value ec \'common-name :kb eckb) nil)) when name collect (list (gfh r) name))))')
 

@@ -49,7 +49,8 @@ if ($ARGV[1]) {
     $fh = *OUT;
 }
 
-my $pt_sock_path = $ENV{'PTOOLS-ACCESS-SOCKET'} || "/tmp/ptools-socket";
+my $pt_sock_path = $ENV{'PTOOLS_ACCESS_SOCKET'} || "/tmp/ptools-socket";
+print "$pt_sock_path\n";
 
 my @orglist = split(/,/, $ENV{'PMN_ORGLIST'});
 

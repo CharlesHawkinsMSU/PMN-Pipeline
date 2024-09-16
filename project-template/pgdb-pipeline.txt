@@ -1,3 +1,6 @@
+# This file contains general configuration for the PMN pipeline. This default config file is intended for running the pipeline outside of the Singularity container; you will at least need to edit lines with /PATH/TO to enter the path where you have installed each required piece of software and set of files
+# If running from the Singularity container, the default config located at ../singularity/pgdb-pipeline.txt should be your starting point rather than this file
+
 # Tab-delimited table containing per-pgdb information; see the pipeline documentation for information on this file
 proj-pgdb-table = pgdb-table.txt
 
@@ -13,8 +16,11 @@ proj-e2p2-dir = e2p2
 # Directory in which to put the savi input and output (should contain input and output subdirectories)
 proj-savi-dir = savi
 
-# File to save the output of savi-check. The savi-check step should be run after savi-dump and finds newly-predicted pathways that need to be savitized (i.e. assigned rules for when to keep them and whether to add them to all plants). The list of pathways will be saved to the file listed here
+# File to save the output of savi-check. The savi-check step should be run after savi-dump and finds newly-predicted pathways that need to be savitized (i.e. reviewed and assigned rules for when to keep them and whether to add them to all plants). The list of pathways will be saved to the file listed here
 savi-check-output = to-savitize.txt
+
+# Any pathways in the pgdbs in this directory will not appear in the savi-check output. Usually set it to the previous release's pgdb directory. Nonsavitized pathways will be accepted if predicted (as if they were placed in AIPP.txt) but 
+# savi-exclude-dir = 
 
 # Directory for gff files for each genome. May not be needed; they can be used to generate an amino-acid fasta from a fasta from the (nucleic acid) genome if no amino acid fasta was provided; and they can be used to get the gene / locus accession associated with each protein in the amino acid fasta if that information is not in the fasta header
 proj-gff-dir = gff
@@ -28,20 +34,17 @@ proj-maps-output-dir = maps-out
 # Directory in which to save the project's BLAST sets
 proj-blastsets-dir = blastsets
 
-# If true, copies of all the pgdbs at several stages of the pipeline will be kept in the proj-intermediate-dir. Necessary for the "pmn-pipeline revert" command to work
-save-intermediates = yes
-
 # Directory in which to save intermediate copies of the pgdbs at several stages of the pipeline (if save-intermediate is true)
 proj-intermediate-dir = intermediate-pgdbs
 
 # Path to the Pathway Tools executable
-ptools-exe = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/pathway-tools/aic-export/pathway-tools/ptools/27.0/pathway-tools
+ptools-exe = /PATH/TO/pathway-tools/pathway-tools
 
 # Path to the directory where Pathway Tools keeps its (user) PGDBs
-ptools-pgdbs = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pathway-tools/27.0/ptools-local/pgdbs/user
+ptools-pgdbs = /PATH/TO/ptools-local/pgdbs/user
 
-# Path where SAVI is installed; should point to the directory containing the runSAVI script
-savi = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/savi/current
+# Path where SAVI is installed; should point to the directory containing the runSAVI.sh script
+savi = PATH/TO/savi
 
 # SAVI common files directory
 proj-common-dir = common
@@ -55,8 +58,11 @@ proj-log-dir = logs
 # Filename to save FASTA statistics computed by the fa-stats stage
 proj-fa-stats = fa-stats.txt
 
-# Path to where e2p2 is installed
-e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
+# Path to where E2P2 is installed
+e2p2 = PATH/TO/E2P2
+
+# Path to the RPSD for E2P2 to use; the default is 'rpsd_current' in the E2P2 directory
+# rpsd = /PATH/TO/rpsd
 
 # Path to the E2P2 config file for E2P2 v5; if not given the default is to look for "config.ini" in the E2P2 program directory. E2P2 comes with an example config file in data/config_template.ini. Ignored if E2P2v4 is being used as v4 does not use a config file
 # e2p2-config = e2p2-config.ini
@@ -64,26 +70,26 @@ e2p2 = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/pgdb-pipeline/E2P2
 # If running as an update to a previous release, set this to the project folder for that previous release; if not then it can be left blank
 previous-version-proj =
 
-# What to use for running tasks in parallel. Valid values are parallel, slurm, and none
-parallelism = none
+# Allows for splitting up input fasta files before running E2P2, for improved parallelism. Run the 'split' stage before e2p2 and 'join' after. Use the -l option to the pipeline to run e2p2 in parallel over all splits, limited by max-parallel-cpus
+# split-fa-num-files = 20
 
-# How many tasks to submit for each SLURM job. Higher numbers incur less overhead starting the jobs; lower numbers get started sooner when the cluster is busy. Reasonable values are 2 - 8
-#slurm-job-pack = 4
+# How many CPUs to use when running parallel (with -l). If not given, the default is the number of CPUs detected on the system; you may want to specify a lower value if you want your machine to remain responsive however. E2P2 itself uses multiple CPUs so this value will be divided by the num_threads value from the E2P2 config file (the one specified in the e2p2-config variable in this file) when running E2P2 (rounded down but to a minimum of 1)
+# max-parallel-cpus = 4
 
-# Versions of the E2P2 and SAVI software and of the RPSD data used in the pipeline. These are used in making citations for E2P2 and SAVI
-e2p2-version = 4.0
-rpsd-version = 4.2
-savi-version = 3.1
-
-# If your HPC cluster uses the module system, this is a list of modules to load for the pipeline
-#module-load = BLAST+
+# Versions of the E2P2 and SAVI software and of the RPSD data used in the pipeline. These are only used when generating citations for E2P2 and SAVI
+e2p2-version = 5.0
+rpsd-version = 5.2
+savi-version = 3.2
 
 # Files containing info for all authors to be credited for the generated databases(authors-file), and of all organizations given as affiliations in that file (organizations-file). Author lists for individual databases still need to be given in the PGDB table
 authors-file = authors.txt
 organizations-file = organizations.txt
 
 # File that loads the PMN Lisp functions into Pathway Tools
-pmn-lisp-funs = /Carnegie/DPB/Data/Shared/Labs/Rhee/Private/PMN/lisp/pmn-lisp-funs.lisp
+pmn-lisp-funs = PATH/TO/PMN-Pipeline/lisp/pmn-lisp-funs.lisp
 
 # X server to use for refine-c. Valid options are: 'external', to use the existing X server; 'xvfb', to start an Xvfb server (simple headless X server; https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml); or 'xpra', to start an xpra server (more complicated but possible to connect to if you need to, but may not work under Singularity; https://xpra.org/index.html)
 x-server = external
+
+# File to put unique IDs for all the organisms, used internally by Pathway Tools to identify where frames originated
+uids-file = uids.txt

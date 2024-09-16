@@ -16,44 +16,48 @@ import create_savi_citations
 import refine_c
 import revise_pf
 import savi_pathways
+import htdocs
+import tables
 from split_fasta import get_split_filename, split_fasta
 
 # The standard sequence of stages, used when the user requests a range of stages:
-stage_sequence = ['precheck', 'e2p2', 'revise', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
+stage_sequence = ['precheck', 'split', 'e2p2', 'join', 'revise', 'unique-ids', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = {'split', 'join', 'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check', 'savi-check'}
+stages_nonsequenced = {'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check', 'savi-check', 'htdocs', 'custom-dumps'}
 # Stages that can only be executed on their own, and not part of any stage sequence
 stages_singleton = {'newproj', 'lisp'}
 # Stages that require an instance of Pathway Tools to be running:
-stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats', 'metadata'}
+stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats', 'metadata', 'custom-dumps', 'unique-ids'}
 # Stages that cannot be run in parallel over the organism list; when running in parallel and we get to one of these stages, we have to wait for all previous stages to complete for all orgs before proceeding
-stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean', 'savi-check'}
+stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean', 'savi-check', 'htdocs', 'unique-ids'}
 
 # Help text for each stage
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
-			  'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
-			  'revise': 'Add in gene IDs to the E2P2 output files',
-			  'prepare': 'Puts all files in place to create PGDBs',
-			  'create': 'Creates initial PGDBs using PathoLogic',
-			  'savi-dump': 'Dumps PGDBs to flat-files required for SAVI; alias for "dump"',
-			  'savi-prepare': 'Puts all files in place to run SAVI',
-			  'savi': 'Runs SAVI to apply pathway-level curation rules to each new PGDB',
-			  'refine-prepare': 'Generates author and citation frames, and puts all files in place to run refine A',
-			  'refine-a': 'Applies SAVI\'s suggestions for pathways to add/remove; adds in citations for E2P2 and SAVI; fixes common names of enzymatic reactions; adds external database links to enzymes if available',
-			  'refine-b': 'Finds any experimentally-validated pathways and enzymes in the reference database(s) for each species and imports them into the appropriate PGDB',
-			  'refine-c': 'Runs Pathway Tools\' cconsistency checker; generates the cellular overview; assigns the requested authors to each PGDB',
-			  'blastset': 'Generates BLAST dbs for each PGDB so their enzymes can be searched using BLAST',
-			  'final-dump':'Dumps both attribute-value and BioPAX flatfiles (i.e. runs "dump" and "dump-biopax")',
-			  'split': 'Splits input FASTAs into multiple parts so they can be run through E2P2 in parallel (see the -s option); should be run before "e2p2"',
-			  'join': 'Joins the split E2P2 output files for each species into one for each species; should be run before "revise"',
-			  'delete': 'Deletes existing PGDBs listed in the input table',
-			  'dump': 'Dumps attribute-value flat files for each PGDB to pgdbs/<orgid>cyc/<version>/data',
-			  'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
-			  'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
-			  'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
-			  'list-stages': 'List all valid stages in the pipeline',
-			  'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
-			  }
+	      'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
+	      'revise': 'Add in gene IDs to the E2P2 output files',
+	      'unique-ids':'Gets new unique-ids for orgids that don\'t already have them',
+	      'prepare': 'Puts all files in place to create PGDBs',
+	      'create': 'Creates initial PGDBs using PathoLogic',
+	      'savi-dump': 'Dumps PGDBs to flat-files required for SAVI; alias for "dump"',
+	      'savi-prepare': 'Puts all files in place to run SAVI',
+	      'savi': 'Runs SAVI to apply pathway-level curation rules to each new PGDB',
+	      'refine-prepare': 'Generates author and citation frames, and puts all files in place to run refine A',
+	      'refine-a': 'Applies SAVI\'s suggestions for pathways to add/remove; adds in citations for E2P2 and SAVI; fixes common names of enzymatic reactions; adds external database links to enzymes if available',
+	      'refine-b': 'Finds any experimentally-validated pathways and enzymes in the reference database(s) for each species and imports them into the appropriate PGDB',
+	      'refine-c': 'Runs Pathway Tools\' cconsistency checker; generates the cellular overview; assigns the requested authors to each PGDB',
+	      'blastset': 'Generates BLAST dbs for each PGDB so their enzymes can be searched using BLAST',
+	      'final-dump':'Dumps both attribute-value and BioPAX flatfiles (i.e. runs "dump" and "dump-biopax")',
+	      'split': 'Splits input FASTAs into multiple parts so they can be run through E2P2 in parallel (see the -s option); should be run before "e2p2"',
+	      'join': 'Joins the split E2P2 output files for each species into one for each species; should be run before "revise"',
+	      'delete': 'Deletes existing PGDBs listed in the input table',
+	      'dump': 'Dumps attribute-value flat files for each PGDB to pgdbs/<orgid>cyc/<version>/data',
+	      'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
+	      'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
+	      'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
+	      'list-stages': 'List all valid stages in the pipeline',
+	      'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
+	      'htdocs': 'Generate htdocs for hosting a Pathway Tools web instance in the style of PMN',
+	      }
 
 if __name__ == "__main__":
 	stderr.write('stages.py is a library that contains the PMN pipeline stage definitions and code for running them. It does nothing when executed directly. Use pmn-pipeline.py to run the pipeline\n')
@@ -110,16 +114,6 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		passed &= check(pmn.check_pipeline_config(config), config_filename)
 		pmn.message((f'\n==Checking organism table {org_filename}=='))
 		passed &= check(pmn.check_pgdb_table(orgtable, config), org_filename)
-		par_prov = config.setdefault("parallelism", "none")
-		pmn.message((f'\n==Checking parallelism provider {par_prov}=='))
-		passed &= check(pmn.check_parallelism(config), f'parallelism provider {par_prov}')
-		socket = config.setdefault('ptools-socket', '/tmp/ptools-socket')
-		pmn.message((f'\n==Checking if an existing Pathway Tools API instance is already running=='))
-		if path.exists(socket):
-			pmn.error(f'Socket {socket} already exists; Pathway Tools may already be running in API mode. Please quit the Pathway Tools instance that is in API mode.')
-			passed = False
-		else:
-			pmn.message(pmn.green_text('No existing Pathway Tools instance, check passed'))
 		pmn.message('\n==Checking for AraCyc and PlantCyc==')
 		aracyc_path = path.join(config['ptools-pgdbs'], 'aracyc')
 		if path.exists(aracyc_path):
@@ -273,6 +267,17 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 				pmn.error('E2P2 failed')
 				exit(e2p2_result)
 
+	elif stage == 'unique-ids':
+		for org in orglist:
+			entry = orgtable[org]
+			if 'Unique ID' in entry:
+				pmn.info(f'{org} already has unique ID {entry["Unique ID"]}')
+			else:
+				uid = generate_org_uid(org, ptools)
+				pmn.info(f'Unique ID {uid} assigned to {org}')
+				entry['Unique ID'] = uid
+		pmn.write_uids_file(config, orgtable)
+
 	elif stage == 'prepare':
 		pmn.message(pmn.blue_text('==Preparing master files=='))
 		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe'], ','.join(orglist)], procname = 'Prepare')
@@ -423,6 +428,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 				refdbs += ['Meta']
 			ptools.send_cmd(f'(refine-b :ref-kbs \'({" ".join(refdbs)}))')
 			ptools.send_cmd('(save-kb)')
+			ptools.send_cmd('(close-kb :save-updates-p nil :flush-memory-p t)')
 	elif stage == 'refine-c':
 		pmn.message(pmn.blue_text('==Running Refine-C=='))
 		refine_c.refine_c(config, orgtable, orglist, ptools)
@@ -480,7 +486,6 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 			pmn.message('No SLURM logs to delete')
 
 		# Delete e2p2 temp files
-
 
 	elif stage == 'delete':
 		pmn.message('The following PGDBs will be deleted:')
@@ -576,6 +581,10 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		except IOError as e:
 			pmn.error(f'{e.filename}: {e.strerror}')
 			exit(1)
+	elif stage == 'htdocs':
+		htdocs.generate_htdocs(config, orgtable, orglist)
+	elif stage == 'custom-dumps':
+		tables.export_custom_dumps(config, orgtable, orglist, ptools, args)
 
 	else: # Stage wasn't any of the internally-defined stages, so it must refer to a .master file
 		masterfile = stage
@@ -584,11 +593,11 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		pmn.message(pmn.blue_text(f'==Running master file {masterfile}=='))
 		masterscript = path.join(perl_scripts_path, 'pmn-release-pipeline-parallel.pl')
 		for org in orglist:
-			pmn.message('Running %s on %s'%(masterfile, org))
 			masterfilepath = path.join(config['proj-masters-dir'], org, masterfile)
+			pmn.message('Running %s on %s'%(masterfilepath, org))
 			perl_env = os.environ.copy()
-			perl_env['PTOOLS-ACCESS-SOCKET']=ptools.pt_socket
-			perl_env['PMN_ORGLIST'] = args.o
+			perl_env['PTOOLS_ACCESS_SOCKET']=ptools.pt_socket # the var used by ptools is PTOOLS-ACCESS-SOCKET because some men just want to watch the world burn, and so we have to change it to underscores here because perl doesn't like dashes in its env variable names (they won't get passed to commands it calls with 'system')
+			#perl_env['PMN_ORGLIST'] = args.o
 			pmn.info(f'Perl environment: {perl_env}')
 			#mf_result = subprocess.run(['perl', masterscript, masterfilepath, masterfilepath + '.log'], env=perl_env, capture_output = True)
 			#pmn.subproc_msg(mf_result.stdout)
@@ -653,3 +662,7 @@ def splits_for_org(config, orgtable, org, split_req):
 		outpre = path.join(config['proj-e2p2-dir'], 'splits', outfilename)
 		outpath = get_split_filename(outpre, split)
 		yield (inpath, outpath)
+
+def generate_org_uid(org, ptools):
+	uid = ptools.send_cmd(f'(base36 (get-pgdb-unique-id \'{org}))').strip('"')
+	return uid

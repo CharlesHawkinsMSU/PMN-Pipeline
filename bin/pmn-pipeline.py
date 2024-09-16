@@ -19,6 +19,20 @@ par.add_argument('-k', '--check', help = 'Checks the output of the given stages 
 args = par.parse_args()
 pmn.verbose = args.v
 
+# This is the main front-end script for the PMN pipeline. The basic operation is:
+# - The requested stages are retrieved from the args.stage argument.
+# - stages.compile_stage_list is used to expand dash expressions in the requested stage list and get the final list of stages to run.
+# - If runing non-parallel (no -l), run_stage_list is called directly
+#   - run_stage_list loops through the requested stages and runs each one using stages.run_stage, starting Pathway Tools on the first stage that requires it
+#   - stages.run_stage actually runs the stage, looping through orgids if appropriate for the stage
+# - If running parallel (with -l), the code
+#   - starts a ThreadPoolExecutor (threads are fine here because all the computation-intensive work is done by external programs that will be started using subprocess)
+#   - goes down the list of requested stages, adding parallelizable stages to a queue until it reaches a non-parallelizeable stage or the end
+#   - executes the queued stages using execute_queued_stages.
+#   - execute_queued_stages goes through the org list and submits a job to the thread pool to run all queued stages on that org using run_stage_list.
+#   - non-parallel stages require that all previous parallel stages finish first, then are executed directly with run_stage_list in the main thread the same as when running the pipeline in non-parallel mode
+#   - if there are more stages to run, it clears the queue and starts adding parallelizable stages to it again, repeat until all stages have been run
+#   - the e2p2 stage is a special case; prior parallel stages must finish, then e2p2-specific code is used to queue up a list of each combination of org and split to then all submit to the thread pool, then once all are done the pipeline resumes as normal
 
 
 # Executes any and all stages that are waiting in the given stage queue (in parallel for all requested organisms), blocks until all organisms have finished, and clears the queue
@@ -33,13 +47,10 @@ def execute_queued_stages(stage_queue, config, orgtable, orglist, args):
 	stage_queue.clear()
 
 def start_ptools(stage_list, config):
-	# Pick a socket name that should be unique (if we're under SLURM then use the slurm job ID; otherwise use the PID)
-	sock_name = path.join(config['proj-sock-dir'], pmn.get_run_id() + '.sock')
-	pmn.info(f'Starting Pathway Tools using socket {sock_name}')
 	# If we're running refine-c, then we need to set up an x-server (PTools needss to put up the GUI to generate the cellular overview) and also start ptools in web mode (required for PTools to generate the web cellular overview)
 	running_refine_c = 'refine-c' in stage_list
 	pmn.info(f'Stage list contains refine-c: {"yes" if running_refine_c else "no"}')
-	return pmn.PMNPathwayTools(config, socket = sock_name, args = ['-www'] if running_refine_c else [], x11 = config.setdefault('x-server', 'external'))
+	return pmn.PMNPathwayTools(config, args = ['-www'] if running_refine_c else [], x11 = config.setdefault('x-server', 'external'))
 
 def run_stage_list(stage_list, config, orgtable, orglist, args):
 	print(args)

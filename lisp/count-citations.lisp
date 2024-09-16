@@ -1,5 +1,15 @@
 ; Functions that count things in the database or pull sets of things out from the database
 
+(defun get-all-citations (classes)
+  "Gets a nonredundant list of all citations from the 'citations slot in all the given classes"
+  (setq cset (empty-set))
+  (loop for class in classes
+	do (loop for f in (gcai class)
+		 do (loop for cit in (gsvs f 'citations)
+			  do (add-to-set (first (excl:split-re ":" cit)) cset))))
+  (set-to-list cset))
+
+
 (defun frame-table (frames specs)
   "Returns a table of the specified data from the given frames, suitable for use with write-alist. Give it a framespec (a frame, class, or list of either) and a list of 2-element specs. Each spec consists of a string used as the column header and either a slot name or a function to be run on the frame. That column will be populated with either that slot for each frame (values converted to strings and multiple values separated with semicolons) or the result of running the given function on each frame"
   (cons (loop for spec in specs collect (first spec))
@@ -637,10 +647,20 @@
 (defparameter viridiplantae 'tax-33090)
 
 (defun count-class-members (orgids classes)
+  "Get a non-redundant count of members of the given frame classes across the given PGDBs. \"Non-redundant\" is judged by frame ID, so PWY-1234 in AraCyc and PWY-1234 in CornCyc will only count as one pathway"
   (let ((tables
-		  (loop for cl in classes collect (list cl (make-hash-table)))))
-	(for-orgids orgids (loop for (cl table) in tables do (add-list-to-set (get-frame-handles (get-class-all-instances cl)) table)))
-	(loop for (cl table) in tables collect (list cl (set-length table)))))
+	  (loop for cl in classes collect (list cl (make-hash-table)))))
+    (loop-orgids orgids do (loop for (cl table) in tables do (add-list-to-set (get-frame-handles (get-class-all-instances cl)) table)) closing)
+    (loop for (cl table) in tables collect (list cl (set-length table)))))
+
+(defun avg-class-members (orgids classes)
+  "Gets the average count of the given class members across the given PGDBs"
+  (loop for cl in classes
+	collect (list cl
+		      (loop-orgids orgids
+				   closing
+				   sum (length (gcai cl)) into s
+				   finally (return (float (/ s (length orgids))))))))
 
 (defun count-class-members-with-dblink (orgids class db)
   (let ((tab (make-hash-table)))
@@ -655,13 +675,18 @@
 	(for-orgids orgids (add-list-to-set (get-frame-handles (enz-with-exp-ev)) tab))
 	(set-length tab)))
 
-(defun count-plants (&optional (orgid 'plant)(clade viridiplantae))
+(defun count-plants (&key (pgdb 'plant)(clade viridiplantae)(from-frame-classes '(|Pathways| |Proteins|)))
   "Counts the number of unique viridiplantae species represented by the pathways in the given org-kb"
-  (so orgid)
+  (so (as-orgid pgdb))
   (setq sp (make-hash-table))
-  (loop for p in (get-class-all-instances "Pathways") do 
-		(add-list-to-set (to-handles (get-slot-values p 'species)) sp))
-  (loop for s in (set-to-list sp) count (is-viridiplantae s clade)))
+  (loop for c in from-frame-classes
+	do (loop for p in (get-class-all-instances c) do 
+		 (loop for s in (get-slot-values p 'species)
+		       do (setq rs (car (last (up-to-species s))))
+		       unless rs
+		       do (format t "~A~%" s)
+		       do (add-to-set (gfh rs) sp))))
+  (loop for s in (set-to-list sp) when s count (is-viridiplantae s clade)))
 
 (defun is-viridiplantae (taxon &optional (clade viridiplantae))
   "Returns the given taxon if it is a member of viridiplantae (land plants and green algae), or NIL otherwise"

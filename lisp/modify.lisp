@@ -10,7 +10,7 @@
 		'("Partially-Purified Protein from Heterologous Host" "EV-EXP-IDA-PART-PURIFIED-PROTEIN-HH")
 		'("Unpurified Protein from Heterologous Host" "EV-EXP-IDA-UNPURIFIED-PROTEIN-HH")))
 (defun read-enzrxn-submission-form (formfile kb &key (refkb 'plant))
-  "Read in the PMN submission form, specifically the \"Reactions Catalyzed\" sheet. Two header lines are expected and will be ignored. The colums are protein accession, reaction ID, activity name, citation, evidence code, direction. The database to curate into (should be a kb or orgid) must be given. For this reason you will have to split the file by species first if it contains multiple species. Enzymes will be searched for in the kb you specify. If found the enzrxns will be searched for. If found, the requested citation will be added. If no enzrxn is found, new ones will be created. If no enzyme is found, a new one will be created. In any case, the new data will be copied into plantcyc (or another refkb you specify; give :refkb NIL to suppress). If there is no existing PMN db for your species, give a taxon frame id as kb. Usually these are TAX-12345 where 12345 is the NCBI taxon ID, but check plantcyc for the taxon frame, as a small number are ORG-12345 where 12345 is some other number (not the taxon ID). In this case, the enzyme will be curated into plantcyc."
+  "Read in the PMN submission form, specifically the \"Reactions Catalyzed\" sheet. Two header lines are expected and will be ignored. The colums are protein accession, reaction ID, activity name, citation, evidence code, direction. The database to curate into (should be a kb or orgid) must be given. For this reason you will have to split the file by species first if it contains multiple species. Enzymes will be searched for in the kb you specify. If found the enzrxns will be searched for. If found, the requested citation will be added. If no enzrxn is found, new ones will be created. If no enzyme is found, a new one will be created. In any case, the new data will be copied into plantcyc (or another refkb you specify; give :refkb NIL to suppress). If there is no existing PMN db for your species, give a taxon frame id as kb. Usually these are TAX-12345 where 12345 is the NCBI taxon ID, but check plantcyc for the taxon frame, as a small number are ORG-12345 where 12345 is some other number (not the taxon ID). In this case, the enzyme will be curated into plantcyc. This function should be run after refine-b, and refine-c should be run or rerun after it"
   (let* ((refkb (as-kb refkb))
 	 (actual-kb (ignore-errors (as-kb kb)))
 	 (taxid (if actual-kb
@@ -21,14 +21,15 @@
 	 (file-contents (cddr (read-alist formfile)))
 	 (kb-to-search (or actual-kb refkb)))
     (so (as-orgid kb-to-search))
-    (make-indexes-if-needed)
+    ;(make-indexes-if-needed)
+    (make-index :class "Proteins" :table *prot-index* :kb kb)
     (format t "~A~%" file-contents)
     (setq new-ezrs (loop for (prot-acc rxn-id activity-name citation ev-desc direction . remainder) in file-contents
 			 for prot = (find-or-create-protein prot-acc)
 			 for ezr = (find-or-create-enzrxn prot rxn-id)
 			 for ev-code = (or (gethash ev-desc subform-ev-codes)
 					   (error (format nil "Evidence \"~A\" not recognized" ev-desc)))
-			 do (find-or-import-rxn rxn-id :refkb refkb)
+			 do (find-or-import-rxn rxn-id :refkb `(,refkb meta))
 			 do (add-enzrxn-citation-replacing-e2p2 ezr citation ev-code)
 			 do (put-slot-value ezr 'common-name activity-name)
 			 collect ezr))
@@ -42,7 +43,7 @@
   (unless
     (loop for citation in (gsvs enzr 'citations)
 	  with rv = nil
-	  do (setq cit-components (excl:split-re citation colon-re))
+	  do (setq cit-components (excl:split-re colon-re citation))
 	  when (excl:match-re e2p2-re citation)
 	  do (format t "Removing E2P2 citation ~A from ~A~%" citation (gfh enzr))
 	  and do (remove-slot-value enzr 'citations citation)

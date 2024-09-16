@@ -52,7 +52,7 @@ my @DBS_TO_DELETE = ("METACYC" , "PLANTCYC");
 
 my $DB= $ARGV[0];
 my $cyc = perlcyc -> new ($DB);
-$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
+$cyc->{'_socket_name'} = $ENV{'PTOOLS_ACCESS_SOCKET'} || '/tmp/ptools-socket';
 
 
 my @pwy = $cyc -> all_pathways ();

@@ -36,7 +36,7 @@ def savi_prepare(config, orgtable, orglist = None, proj = '.', old_pgdbs = None)
 			try:
 				entry = orgtable[org]
 			except KeyError:
-				pmn.error(f'Orgid {org} not found in {config["pgdb-table"]}')
+				pmn.error(f'Orgid {org} not found in {config["proj-pgdb-table"]}')
 				exit(1)
 
 			# Find the PGDB version to use

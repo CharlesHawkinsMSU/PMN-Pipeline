@@ -27,20 +27,25 @@ use strict;
 use warnings;
 use Env;
 
-
+my $species;
+my $folder;
+my $file;
+my $refcyc;
+my $DB;
+my $ucrefcyc;
 # process arguments
 #
 if (@ARGV < 4) {
     die $usage;
 }
 elsif (@ARGV == 4) {
-    my ($DB, $species, $folder, $file) = @ARGV;
-    my $refcyc = 'meta';
-    my $ucrefcyc = 'Meta';
+    ($DB, $species, $folder, $file) = @ARGV;
+    $refcyc = 'meta';
+    $ucrefcyc = 'Meta';
 }
 else {
-    my ($DB, $species, $folder, $file, $refcyc) = @ARGV;
-    my $ucrefcyc = ucfirst($refcyc);
+    ($DB, $species, $folder, $file, $refcyc) = @ARGV;
+    $ucrefcyc = ucfirst($refcyc);
 }
 $species =~ s/_/ /;
 $folder =~ s!/$!!;
@@ -49,7 +54,6 @@ my %savi;
 my %savi_pwy;
 
 open(IN, "<$file") or die "The savi-coment-file $file couldn't be opend.\n";
-
 while (<IN>) {
     next if (/^#/ || /^\s*$/);
     chomp;
@@ -76,12 +80,13 @@ while (<IN>) {
 
 close IN;
 
-
 # read refcyc comments
 #
 my $cyc = perlcyc -> new($refcyc);
+my $pt_sock = $ENV{'PTOOLS_ACCESS_SOCKET'};
 
-$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
+print "Socket is $pt_sock\n";
+$cyc->{'_socket_name'} = $ENV{'PTOOLS_ACCESS_SOCKET'} || '/tmp/ptools-socket';
 
 my %refcyc_comment;
 my @ref_pwy= $cyc -> all_pathways ();
@@ -92,10 +97,10 @@ foreach my $ref_pwy (@ref_pwy) {
 
 $cyc -> close;
 
-
 # current PGDB
 #
 $cyc = perlcyc -> new($DB);
+$cyc->{'_socket_name'} = $ENV{'PTOOLS_ACCESS_SOCKET'} || '/tmp/ptools-socket';
 
 my @old_pwy= $cyc -> all_pathways();
 

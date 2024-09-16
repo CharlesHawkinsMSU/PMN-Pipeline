@@ -16,6 +16,9 @@ e2p2-config = e2p2-config.ini
 # Directory in which to put the savi input and output (should contain input and output subdirectories)
 proj-savi-dir = savi
 
+# File to save the output of savi-check. The savi-check step should be run after savi-dump and finds newly-predicted pathways that need to be savitized (i.e. reviewed and assigned rules for when to keep them and whether to add them to all plants). The list of pathways will be saved to the file listed here
+savi-check-output = to-savitize.txt
+
 # Directory for gff files for each genome. May not be needed; they can be used to generate an amino-acid fasta from a fasta from the (nucleic acid) genome if no amino acid fasta was provided; and they can be used to get the gene / locus accession associated with each protein in the amino acid fasta if that information is not in the fasta header
 proj-gff-dir = gff
 
@@ -46,6 +49,9 @@ proj-sock-dir = sockets
 # Directory to save logfiles
 proj-logs-dir = logs
 
+# Directory to generate htdocs for the Ptools web instance
+proj-htdocs-dir = htdocs
+
 # Filename to save FASTA statistics computed by the fa-stats stage
 proj-fa-stats = fa-stats.txt
 
@@ -66,3 +72,12 @@ savi-version = 3.1
 # Files containing info for all authors to be credited for the generated databases(authors-file), and of all organizations given as affiliations in that file (organizations-file). Author lists for individual databases still need to be given in the PGDB table
 authors-file = authors.txt
 organizations-file = organizations.txt
+
+# File to put unique IDs for all the organisms, used internally by Pathway Tools to identify where frames originated
+uids-file = uids.txt
+
+# Allows for splitting up input fasta files before running E2P2, for improved parallelism. Run the 'split' stage before e2p2 and 'join' after. Use the -l option to the pipeline to run e2p2 in parallel over all splits, limited by max-parallel-cpus
+# split-fa-num-files = 20
+
+# How many CPUs to use when running parallel (with -l). If not given, the default is the number of CPUs detected on the system; you may want to specify a lower value if you want your machine to remain responsive however. E2P2 itself uses multiple CPUs so this value will be divided by the num_threads value from the E2P2 config file (the one specified in the e2p2-config variable in this file) when running E2P2 (rounded down but to a minimum of 1)
+# max-parallel-cpus = 4

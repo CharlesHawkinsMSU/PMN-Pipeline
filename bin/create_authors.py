@@ -58,7 +58,7 @@ def create_frames(config, orgtable, orglist = None, ptools = None):
 
 
 	if ptools is None:
-		pmn.info(f'Create Authors step will start Pathway Tools from {config["ptools-exe"]} and connect to the socket at {config["ptools-socket"]}')
+		pmn.info(f'Create Authors step will start Pathway Tools from {config["ptools-exe"]}')
 		ptools = pmn.PathwayTools(config['ptools-exe'])
 	orgs_avail = ptools.get_org_list()
 	origin_orgids = {}  # Which organism db has been used to create each Organization frame (it will then be propagated to all the others)

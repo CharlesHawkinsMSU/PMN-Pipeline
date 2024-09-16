@@ -39,7 +39,7 @@ my ($DB, $citation, $start, $end) = @ARGV;
 # current PGDB
 #
 my $cyc = perlcyc -> new($DB);
-$cyc->{'_socket_name'} = $ENV{'PTOOLS-ACCESS-SOCKET'} || '/tmp/ptools-socket';
+$cyc->{'_socket_name'} = $ENV{'PTOOLS_ACCESS_SOCKET'} || '/tmp/ptools-socket';
 
 my @enzrxns = $cyc -> get_class_all_instances("|Enzymatic-Reactions|");
 

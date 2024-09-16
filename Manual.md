@@ -4,7 +4,7 @@ This pipeline is used by the Plant Metabolic Network (PMN) to produce the plant 
 ## Overview of the pipeline
 The PMN pipeline starts with the amino acid sequences for a plant or green algal species and produces as its output a pathway-genome database (PGDB) containing a full predicted metabolism for the species. The databases are accessed using the Pathway Tools software from SRI International and can be hosted on the web using that software. Databases like this can serve as a general reference for the species metabolism, and can perform functions such as mapping between sets of compounds and sets of enzymes or pathways, or finding pathways enriched for a set of genes or metabolites.
 
-To run the pipeline you need, at minimum, the amino acid sequences for your species of interest. If possible you should also have some means to map the protein IDs to their corresponding gene IDs. The pipeline presently requires downloaded copies of PlantCyc and AraCyc; these you can get by filling out a license request at (url); these licenses are free for all users. A copy of Pathway Tools is also required. Information about Pathway Tools can be found at (http://bioinformatics.ai.sri.com/ptools); as of January 2024, SRI offers free licenses to academic and government users, but commercial users will need a paid license to use their software.
+To run the pipeline you need, at minimum, the amino acid sequences for your species of interest. If possible you should also have some means to map the protein IDs to their corresponding gene IDs. The pipeline presently requires downloaded copies of PlantCyc and AraCyc; these you can get by filling out a license request at (https://plantcyc.org/downloads/license-agreement); these licenses are free for all users. A copy of Pathway Tools is also required. Information about Pathway Tools can be found at (http://bioinformatics.ai.sri.com/ptools); as of January 2024, SRI offers free licenses to academic and government users, but commercial users will need a paid license to use their software.
 
 The pipeline is built to run in a Linux environment on an x86_64 CPU. On Windows we recommend the Windows Subsystem for Linux (WSL) software from Microsoft (https://learn.microsoft.com/en-us/windows/wsl/install) that creates a Linux environment on Windows. As for macOS, we recommend a virtualization solution, such as Qemu, VirtualBox, VMWare, or Parallels, running a Linux guest. It may be possible to make the pipeline run natively on macOS but this has not been tested at all, although this may be the only way to run the pipeline on M1-based Macs without using emulation. It is unlikely the pipeline can be made to run on non-Mac ARM-based machines without using emulation due to the dependency on Pathway Tools, which at present only offers x84_64 binaries on Linux.
 
@@ -15,20 +15,20 @@ The basic steps for creating a PGDB are to create a new project directory, downl
 - **SAVI**, which applies past curation decisions to improve the database accuracy at the pathway level, by suggesting pathways to add and remove
 - **Refine-A**, which applies SAVI's recommended changes and does other fixes such as putting in reaction names and citations for E2P2 and SAVI
 - **Refine-B**, which pulls relevant experimental evidence concerning the species of interest from the reference database(s) into the newly-created database
-- **Refine-C**, which performs minor finishing actions such as generating the cellular overview diagram and running Pathway Tools' automated consistency checker
+- **Refine-C**, which performs finishing actions such as generating the cellular overview diagram and running Pathway Tools' automated consistency checker
 - **Blastset generation**, an optional step that generates a blast database for the species so that protein queries can be used to find enzymes in the database.
 
-Running the pipeline requires a basic familiarity with the Linux command line.
+For running the pipeline, a basic familiarity with the Linux command line is strongly recommended.
 
 ## Downloading and building the Singularity container
 The recommended way to run the PMN pipeline is via the Singularity container. The container build scripts will handle installing all needed dependencies and putting them where the pipeline can find them. The only component you need to provide is a copy of the Pathway Tools installer. It is also possible to use a local copy of Pathway Tools that is already installed outside of the container; see "Use an external copy of Pathway Tools" below.
 
 ### Download the container build scripts
-The container build scripts are available at the Github project (url). You may download and unzip one of the releases or git-clone the repository.
+The container build scripts are available at the Github project (https://github.com/CharlesHawkinsMSU/pmn-container). You may download and unzip one of the releases or git-clone the repository.
 You will also need to install one of the two currently-active Singularity forks, SingularityCE (https://sylabs.io/singularity) or Apptainer (https://apptainer.org), to build the container.
 
 ### Obtain Pathway Tools
-The pipeline relies on the Pathway Tools software from SRI Internaitonal. Because Pathway Tools is proprietary software, we cannot redistribute it with the pipeline and the container build scripts cannot download it for you. Instead, you will need to supply the installer provided by SRI for installation into your copy of the pipeline container image. You can obtain a license from SRI International at (http://bioinformatics.ai.sri.com/ptools); as of January 2024 SRI offers free licenses to academic, government, and non-profit users, while commercial users will need a paid license. You will want to download the standard Linux installer, with a name like pathway-tools-27.0-linux-64-tier1-install, and place it in the directory with the container build scripts. 
+The pipeline relies on the Pathway Tools software from SRI Internaitonal. Because Pathway Tools is proprietary software, we cannot redistribute it with the pipeline and the container build scripts cannot download it for you. Instead, you will need to supply the installer provided by SRI for installation into your copy of the pipeline container image. You can obtain a license from SRI International at (http://bioinformatics.ai.sri.com/ptools); as of January 2024 SRI offers free licenses to academic, government, and non-profit users, while commercial users will need a paid license. You will want to download the standard Linux installer, with a name like pathway-tools-28.0-linux-64-tier1-install, and place it in the directory with the container build scripts. 
 
 #### Note: Pathway Tools versions
 Each release of the PMN pipeline is coded to use a particular version of Pathway Tools (see the release notes of each release), and this is hardcoded into the build scripts; if you want to use a different version instead, you should edit the file pmn-ptools.def and change the $PT_VER variable and the name of the pathway tools installer further down the file to reflect the Pathway Tools version you want to use. Using a different version of Pathway Tools from the one sepcified in the PMN pipeline release you're using will usually work, but be aware that the results may not be exactly comparable to the PMN databases on https://plantcyc.org that were built using that release of the pipeline.
@@ -77,14 +77,16 @@ A PMN pipeline project has the following directories:
 - **e2p2** - The output files generated by E2P2 will be placed here
 - **fasta** - The amino acid fasta input files should be put in this directory
 - **gff** - If a genomic feature format (GFF) file is available for one or more of the genomes of interest, they may be placed here. Currently GFF files are one option for finding the gene ID for each protein ID
-- **intermediate-pgdbs** - If you run the checkpoint function of the pipeline to save intermediate stages of the PGDBs, they will be placed here, and the checkpoint-restore function will look here for saved PGDBs to restore from
+- **intermediate-pgdbs** - If you run the 'backup' function of the pipeline to save intermediate stages of the PGDBs, they will be placed here, and the 'restore' function will look here for saved PGDBs to restore from
+- **logs** - The main log files for the pipeline will go here
 - **maps-in** - If you choose to use mapping files to manally map from protein IDs to gene IDs, the mapping files should be placed here.
 - **maps-out** - Regardless of how you choose to map protein to gene IDs, the final mappings will be saved to files in this directory, in the same format as the maps-in files, so they can be used to generate future versions of the same PGDBs and ensure that gene-protein mappings and gene/protein frame IDs remain stable across versions
-- **pgdb-masters** - Species-specific scripts will be generated and placed in subdirectories here, along with log files
+- **pgdb-masters** - Species-specific scripts will be generated and placed in subdirectories here, along with some log files
 - **pgdbs** - This is a directory to hold the PGDBs as they are being generated. It will usually be bound to the /pgdbs directory within the container that Pathway Tools uses to hold its repository of user-generated PGDBs
 - **savi** - Files needed for and created by the SAVI step will be placed in subdirectories here
+- **sockets** - This directory will hold the temporary sockets used for communicating with Pathway Tools; you usually shouldn't need to worry about the contents of this directory
 
-In addition, several configuration files are generated:
+In addition, several default control files are generated:
 
 - **pgdb-pipeline.txt** - This is the top-level config file for the pipeline, and contains settings that are not specific to any one species. You can use it to change the name / location of any of the project subdirectories listed above, or of the other config files listed below; or to redirect to external installs of software like BLAST and E2P2 that are used by the pipeline
 - **pgdb-table.txt** - This is a table file in tab-separated value (tsv) format that contains all the info and settings for each species you want to run. It is fairly modular, with column identity determined by the column headers (so columns can be rearranged, or omitted entirely if not needed), multiple table files can be combined in a single run, and there is a system available for defining presets so you need only enter common settings once
@@ -102,7 +104,7 @@ This is the top-level config file for the pipeline. It contains configuration op
 
 The file is a text file, formatted as variable = value, with one such assignment per line. When a variable accepts multiple values (for example proj-pgdb-table to set the name of the PGDB table(s) that give info for each species you want to run), they should be separated with commas. Spaces are allowed around the = signs. Blank lines are ignored, as are lines starting with #. A full listing of the variables that can be set with this file is available here: (url)
 
-Before reading this file, the pipeline will look for /etc/pmn-pipeline.conf and read that, with the same format; any entries in pgdb-pipeline.txt override entries in /etc/pmn-pipeline.conf. The singularity container contains a version of /etc/pmn-pipeline.conf that correctly sets the locations of all software and data the container contains.
+Before reading this file, the pipeline will look for /etc/pmn-pipeline.conf and read that, with the same format; any entries in pgdb-pipeline.txt override entries in /etc/pmn-pipeline.conf. The singularity container contains a version of /etc/pmn-pipeline.conf that correctly sets the locations of all software and data the container contains, so your own config file can be small and only contain options that are specific to the pipeline run you're performing.
 
 #### pgdb-table.txt
 This file contains info for all the species you want to run using the pipeline. It is a tab-delimited table with each row corresponding to one species database you wish to create. You may change the name or location of this file by changing the proj-pgdb-table variable in pgdb-pipeline.txt. You may also split this table among multiple files if desired; separate the file names with commas in pgdb-pipeline.txt. The order matters if you are using presets, as presets must be defined before they are referenced.
@@ -158,7 +160,7 @@ The year for the SAVI and E2P2 citations. Give the year that these were last upd
 
 ##### Optional columns
 
-Most of these are computed from the other columns if left blank.
+Most of these are computed from the other columns if left blank. It is rare that you will need to include them in your table file.
 
 ###### Database Name
 
@@ -184,7 +186,7 @@ The final PF file produced by the revise step and fed into PathoLogic. If not sp
 
 These columns are used in mapping from protein accessions to gene accessions. The finished database should ideally have gene accessions for each enzyme in addition to the protein accession, but there is no one standard way to represent the mapping from one to the other. These columns in the file are therefore used to specify how to do the mapping.
 
-There are three ways of finding the gene ID for each protein supported by the pipeline: Extract them from the fasta headers, find them from a GFF input file, or take them from a tab-delimited mapping file. To select the method used, set the Genes From column in the input table to FASTA, GFF, Map, or None.
+There are three ways of finding the gene ID for each protein supported by the pipeline: Extract them from the fasta headers, find them from a GFF input file, or take them from a tab-delimited mapping file. To select the method used, set the **Genes From** column in the input table to FASTA, GFF, Map, or None.
 
 There is also a means of auto-generating frame IDs for each protein and gene. Frame IDs are IDs used by Pathway Tools to uniquely identify each database object (e.g. proteins, genes, reactions, pathways, compounds). Auto-generating these for genes and proteins is usually not necessary because the accessions are used by default and this usually works best. The only exception is if the protein or gene IDs are not valid as frame IDs, usually because they are too long; the max length of a frame ID is 40 chars. It could also be the case that they contain invalid characters for a frame ID, such as '#'. In these cases auto-generated frame IDs can be assigned; see the Numeric IDs column.
 
@@ -227,7 +229,7 @@ If you have a mapping file you want to use, place it in the maps-in directory (o
 
 ###### No gene IDs
 
-If there are no gene IDs at all (which might be the case, for example, if you're working purely from a transcriptome), then you can skip the revise step entirely. No gene IDs wil be added to the enzymes in the database.
+If there are no gene IDs at all (which could be the case, for example, if you're working purely from a transcriptome), then you can put None in the **Genes From** column to skip the gene mapping entirely. No gene IDs wil be added to the enzymes in the database.
 
 ###### Output mapping files
 
@@ -256,7 +258,7 @@ The author's last name. Multi-word last names are accepted, as are names with hy
 
 ##### Email
 
-Email at which the author can be reached. Optional. **This email will be made public if you publish PGDB to the web**.
+Email at which the author can be reached. Optional. **This email will be made public if you publish the PGDB to the web**.
 
 ##### Login-Account
 
@@ -300,6 +302,10 @@ With the config files all written, you are finally ready to run the pipeline! Al
 
     pmn-ptools.sif -h
 
+To get a list of pipeline stages you can run, with a brief description of each, run:
+
+    pmn-ptools.sif list-stages
+
 In most cases, you can simply proceed to run the desired pipeline stages. The pipeline can be instructed to run one stage, as in:
 
     pmn-ptools.sif precheck
@@ -316,13 +322,13 @@ or to run a range of them in the standard order by putting a dash between the fi
 
 When running the stages that make use of Pathway Tools (create, refine-prepare, dump, dump-biopax, refine-a, refine-b, refine-c), it is necessary to set the environment variable `SINGULARITY_BIND=pgdbs:/pgdbs`. An explanation as to why follows.
 
-The output of the pipeline will be completed PGDBs suitable for use with Pathway Tools. Pathway Tools keeps its own directory of these, in `ptools-local/pgdbs/user/`. The location of ptools-local is configured during the installation of Pathway Tools and isn't supposed to be changed after that. Because Singularity containers are read-only, however, we cannot use a directory inside the container for this. And because the location is fixed at install time, we cannot specify a location relative to the current working directory (which the container does have read/write access to when run). For this reason, it is necessary to manually bind an external directory into the container to house the PGDBs. The container-internal directory `/pmn/ptools-local/pgdbs/user` is symlinked to `/pgdbs`, so binding an external directory to /pgdbs will allow for the PGDBs to be created there. Binds like this can be specified using the `SINGULARITY_BIND` environment variable, with the syntax `SINGULARITY_BIND=<external_dir>:<internal_dir>[,<external_dir_2>:<internal_dir_2>[,...]]`. So to use the pgdbs directory in the current project directory, you can put `SINGULARITY_BIND=pgdbs:/pgdbs` before the invokation of pmn-ptools.sif, or `export SINGULARITY_BIND=pgdbs:/pgdbs` to set it for the remainder of the current shell session.
+The output of the pipeline will be complete PGDBs suitable for use with Pathway Tools. Pathway Tools keeps its own directory of these, in `ptools-local/pgdbs/user/`. The location of ptools-local is configured during the installation of Pathway Tools and isn't supposed to be changed after that. Because Singularity containers are read-only, however, we cannot use a directory inside the container for this. And because the location is fixed at install time, we cannot specify a location relative to the current working directory (which the container does have read/write access to when run). For this reason, it is necessary to manually bind an external directory into the container to house the PGDBs. The container-internal directory `/pmn/ptools-local/pgdbs/user` is symlinked to `/pgdbs`, so binding an external directory to /pgdbs will allow for the PGDBs to be created there. Binds like this can be specified using the `SINGULARITY_BIND` environment variable, with the syntax `SINGULARITY_BIND=<external_dir>:<internal_dir>[,<external_dir_2>:<internal_dir_2>[,...]]`. So to use the pgdbs directory in the current project directory, you can put `SINGULARITY_BIND=pgdbs:/pgdbs` before the invokation of pmn-ptools.sif, or `export SINGULARITY_BIND=pgdbs:/pgdbs` to set it for the remainder of the current shell session.
 
 #### The stages of the pipeline
 
-The standard pipeline stages are, in order: newproj, precheck, e2p2, revise, prepare, create, savi-dump, savi-prepare, savi, refine-prepare, refine-a, refine-b, refine-c, final-dump, blastsets.
+The standard pipeline stages are, in order: newproj, precheck, split, e2p2, join, revise, prepare, create, savi-dump, savi-prepare, savi, refine-prepare, refine-a, refine-b, refine-c, final-dump, blastsets.
 
-Additionally, several other "stages" are available that aren't part of the standard sequence: fixproj, fa-stats, checkpoint, checkpoint-restore, delete, dump, dump-biopax.
+Additionally, several other "stages" are available that aren't part of the standard sequence: list, list-stages, fa-stats, savi-check, backup, restore, delete, clean, dump, dump-biopax, pgdb-stats, and custom-dumps.
 
 ##### newproj
 
@@ -336,11 +342,11 @@ This stage runs a number of checks on the configuration. It checks that all requ
 
 [TBA] It also gives warnings for items that won't prevent the pipeline from running but may suggest an error; these include having the same organism ID appear multiple times in the input table(s) with conflicting information; or having multiple PGDBs with the same input files or taxon ID. You should look into any warnings and make sure the configuration was intentional before proceeding.
 
-You should specify a SINGULARITY_BIND path for the pgdbs for this stage, as it will want to check that the pgdbs directory is writeable.
+You should specify a SINGULARITY_BIND path for the pgdbs for this stage, as it will want to check that the pgdbs directory is writeable and contains copies of PlantCyc and AraCyc.
 
 ##### fa-stats
 
-This optional stage compiles some statistics on the input FASTA files. Any stats that are too far outside "reasonable" values will generate an error or warning when you run the command, and all stats are saved into a tab-delimted table file called fa-stats.txt (filename can be overridden with the proj-fa-stats option in the config file).  This will contain the following columns:
+This optional stage compiles some statistics on the input FASTA files. Any stats that are too far outside "reasonable" values will generate an error or warning when you run the command, and all stats are saved into a tab-delimted table file called fa-stats.txt (the filename to use can be overridden with the proj-fa-stats option in the config file).  This will contain the following columns:
 
 - Orgid: The Organism ID, from the Database ID column in the input table.
 - Sequence File: The input FASTA being analyzed
@@ -353,11 +359,35 @@ This optional stage compiles some statistics on the input FASTA files. Any stats
 
 Together these stats can be useful to avoid or diagnose problems in the pipeline caused by the input sequences.
 
+##### split
+
+This stage is used to split the input fasta files into smaller parts before running E2P2. Doing this lets E2P2 run better in parallel, but is recommended even if not running the pipeline with parallelism turned on because having too large an input file can result in very high memory usage from BLAST.
+
+The splits are placed in fasta/splits. The number of splits is controlled by the config variable split-fa-num-files (present but commented out in the default config file). 20 is a reasonable number to use in most cases. After splitting the input files, you can run E2P2 in parallel either manually or using the pipeline's built-in parallelism; see 'e2p2' below for details.
+
 ##### e2p2
 
 This e2p2 stage runs E2P2. E2P2 is the ensemble enzyme predition pipeline, a piece of software developed by Rhee lab to predict enzyme functions from amino acid sequences. E2P2 is an ensemble predictor that combines predictions from other software using a weighting scheme. The default predictors are BLASTP and DeepEC; it is possible to configure others. E2P2 bases its predictions on the reference protein sequence dataset (RPSD), a set of experimentally-validated enzymes assembled by the E2P2 developers from various sources including MetaCyc, PlantCyc, BRENDA, and SwissProt. The current RPSD is included in the container, so no configuration is necessary on this front.
 
 E2P2's main outputs, *.e2p2v5.orxn.pf, are placed in the e2p2 project directory. They will be revised in the next stage to add in gene IDs.
+
+If you have split the input fasta files using 'split' (see above), you can have e2p2 automatically run in parallel over all the splits:
+
+    pmn-pipeline.sif e2p2 -s all -l
+
+The -s option indicates which splits to run; you can give a single number (1-20 or however many splits you reqested), a range of numbers like  2-4, or 'all' which runs all splits. If you want to use your own parallelism solution here, like SLURM, you can do something like this in the slurm job file:
+
+    pmn-pipeline.sif e2p2 -s $SLURM_ARRAY_TASK_ID
+
+then run your slurm job file with something like:
+
+    sbatch --array=1-20 myjobscript.slurm.sh
+
+In either case, E2P2 will produce split output files in e2p2/splits, which can then be joined using the 'join' stage.
+
+##### join
+
+This stage joins the split E2P2 output files into one file per species. It is needed if you split the input files using 'split'
 
 ##### revise
 
@@ -416,19 +446,40 @@ The final-dump stage generates text-based flat files in various formats of the c
 
 The blastsets stage generates BLAST databases for all organisms in the blastsets folder. These can be used with the NCBI BLAST suite of programs to query a protein or nucleic acid sequence and find matches that link to enzyme frames in the database. These are the basis of PMN's BLAST server at https://blast.plantcyc.org that allows for the databases to be queried for enzymes that match an input sequence.
 
-[TBA]
 ##### custom-dumps
 
 The custom-dumps stages produces tabular output files like those linked to in the "tab-delimited text files" section of https://plantcyc.org/downloads. The files will be placed in the custom-dumps directory.
 
-[TBA]
+##### list
+
+This lists out the organisms in the input table file, along with their index (order within the file); this index can be used if you want to request organisms to run numerically, which can be useful when doing parallelism via SLURM (e.g. you can run a job array and use the array task ID as the organism to run, to run many organisms in parallel).
+
+##### list-stages
+
+This lists the stages you can run with a brief description of each.
+
+##### savi-check
+
+This stage can be run after savi-dump and before savi. It looks through the generated databases and lists out any pathways that do not have a rule in the SAVI input files. If you are using a copy of SAVI external to the Singularity container, you can write your own rules for these pathways if desired; otherwise the prediction of PathoLogic will be kept as-is.
+
+##### delete
+
+This stage deletes already-generated PGDBs. It can be used if the databases are found to have been generated incorrectly and you want to clear them and start over. It will ask for confirmation unless run with -y.
+
+##### clean
+
+This stage deletes various temporary files and logs. Currently it deletes:
+
+* all log files in logs/
+* any slurm log files in the main project directory
+
+It will ask for confirmation unless run with -y.
+
 ## Parallelism and SLURM
 
 By default, the pipeline will run sequentially. If multiple stages are requested, each stage will be run for each organism, one organism at a time, the the next stage for each organism, and so on. The pipeline can, however, be run in parallel instead, at the organism level; that is to say, each organism will be run through the requested stages sequentially, but all organisms are run at once. 
 
-As far as mechanisms for parallelism, the pipeline has built-in support for parallelism using the shell and for generating SLURM jobs that you can submit. You may also use your own parallelism solution (e.g. GNU parallel), but you will have to set it up manually.
-
-You can specify the type of parallelism to use with the `--parallel` and `--slurm-script` flags. Each option has associated settings in pgdb-pipeline.txt; see the sections below.
+As far as mechanisms for parallelism, the pipeline has built-in support for parallelism using the shell. There is some consideration for using SLURM, such as using SLURM job IDs to differentiate process-specific files so that multiple SLRUM jobs won't interfere with one another.
 
 ### Shell parallelism
 
@@ -439,6 +490,10 @@ When you call the main pipeline script with `-l` / `--parallel` and request one 
 You can specify the option `shell-max-processes` in pgdb-pipeline.txt to limit the number of these subprocesses that will run at one time. In picking this value, you should make sure to consider the available RAM as well as CPU cores.
 
 ### SLURM parallelism
+
+**Not implemented yet**
+
+Following is how SLURM integration is planned to work in the future
 
 [SLURM](https://slurm.schedmd.com/) (Simple Linux Utility for Resource Management) is a job management software for Linux that is often used in high-performance computing (HPC) environments. It allows many users to submit jobs to one or more common pools of compute nodes, to be run as resources become available.
 
