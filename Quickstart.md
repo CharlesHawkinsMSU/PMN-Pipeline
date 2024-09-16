@@ -84,6 +84,11 @@ Finally, edit organizations.txt. For each organization given as an Affiliation i
  - Under url, put the front-page url of the organization's website, like https://msu.edu
  - Under email, put an email the organization can be reached at
 
+### Create the protein-gene map
+The *C. sinensis* 1.1 genome has gene IDs that are the protein IDs with g. added to the front; based on this we will write a small awk script to create a mapping file from the gene to protein IDs, required by the pipeline:
+
+    cat fasta/Csinensis_154_protein.fa | awk -F '|' '$1 ~ />/ {sub(">","",$1); print "g." $1 "\t" $1}' > maps-in/Csinensis.map
+
 ### Set environment variables
 
 To run the pipeline via singularity, you need one environment variable set. To set it for the current shell session, enter:
