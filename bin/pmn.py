@@ -974,10 +974,10 @@ def check_pgdb_table(table, config):
 			passed = False
 		try:
 			uid = entry['Unique ID']
-			uid_set.add(uid)
 			if uid and uid in uid_set:
 				error(f'Duplicate Unique ID: {uid} in {table_file}')
 				passed = False
+			uid_set.add(uid)
 		except KeyError:
 			pass
 		cyc_set.add(cyc)
