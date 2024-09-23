@@ -16,20 +16,19 @@ import create_savi_citations
 import refine_c
 import revise_pf
 import savi_pathways
-import htdocs
 import tables
 from split_fasta import get_split_filename, split_fasta
 
 # The standard sequence of stages, used when the user requests a range of stages:
 stage_sequence = ['precheck', 'split', 'e2p2', 'join', 'revise', 'unique-ids', 'prepare', 'create', 'savi-dump', 'savi-prepare', 'savi', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'final-dump', 'blastset', 'pgdb-stats']
 # Valid stages that are not part of the standard sequence:
-stages_nonsequenced = {'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check', 'savi-check', 'htdocs', 'custom-dumps'}
+stages_nonsequenced = {'delete', 'dump', 'dump-biopax', 'checker', 'list', 'list-stages', 'fa-stats', 'env', 'backup', 'restore', 'metadata', 'clean', 'debug-dumptable', 'debug-dumpconfig', 'debug-e2p2check', 'savi-check', 'custom-dumps'}
 # Stages that can only be executed on their own, and not part of any stage sequence
 stages_singleton = {'newproj', 'lisp'}
 # Stages that require an instance of Pathway Tools to be running:
 stages_needing_ptools = {'create', 'dump', 'savi-dump', 'final-dump', 'refine-prepare', 'refine-a', 'refine-b', 'refine-c', 'checker', 'dump-biopax', 'blastset', 'pgdb-stats', 'metadata', 'custom-dumps', 'unique-ids'}
 # Stages that cannot be run in parallel over the organism list; when running in parallel and we get to one of these stages, we have to wait for all previous stages to complete for all orgs before proceeding
-stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean', 'savi-check', 'htdocs', 'unique-ids'}
+stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 'stage-list', 'env', 'list-stages', 'clean', 'savi-check', 'unique-ids'}
 
 # Help text for each stage
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
@@ -56,7 +55,6 @@ stage_help = {'precheck': 'Runs quick checks on the configuration to make sure p
 	      'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
 	      'list-stages': 'List all valid stages in the pipeline',
 	      'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
-	      'htdocs': 'Generate htdocs for hosting a Pathway Tools web instance in the style of PMN',
 	      }
 
 if __name__ == "__main__":
@@ -581,8 +579,6 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		except IOError as e:
 			pmn.error(f'{e.filename}: {e.strerror}')
 			exit(1)
-	elif stage == 'htdocs':
-		htdocs.generate_htdocs(config, orgtable, orglist)
 	elif stage == 'custom-dumps':
 		tables.export_custom_dumps(config, orgtable, orglist, ptools, args)
 
