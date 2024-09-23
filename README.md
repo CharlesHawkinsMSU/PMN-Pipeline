@@ -1,4 +1,5 @@
 # PMN-Pipeline
+**Note: The PMN pipeline is currently in beta testing and may contain bugs. We do not recommend publishing based on this pipeline until we have done more testing and make the release announcements**
 
 The pipeline used by the Plant Metabolic Network to generate pathway-genome databases
 
