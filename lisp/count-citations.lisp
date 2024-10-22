@@ -21,6 +21,11 @@
 						(gsvs frame to-get)))))))
 
 
+(defun rxn-enzyme-list ()
+  "Create a list of reactions in the current db and all enzymes associated with each"
+  (loop for r in (gcai '|Reactions|)
+	collect (list (gfh r)
+		      (print-frames-nicely (enzymes-of-reaction r)))))
 ; Functions to generate reaction formulae with compound IDs
 (defun rxn-cpd-list (rxn slot)
   "For the given reaction and slot (should be 'left or 'right), gives a list of compounds (as frame IDs) and their coefficients in the reaction equation"

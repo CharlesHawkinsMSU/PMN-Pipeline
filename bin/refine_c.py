@@ -28,7 +28,7 @@ def refine_c(config, orgtable, orglist, ptools = None):
         pmn.info(f'==Setting author list for {org}Cyc==')
         ptools.send_cmd(f'(put-slot-values \'{org} \'pgdb-authors \'({entry["Authors"]}))')
         pmn.info(f'==Generating cellular overview for {org}Cyc==')
-        ptools.send_cmd('(update-overview :batch-mode? t :save? t :show-progress? nil :web-cel-ov? t)')
+        ptools.send_cmd('(update-overview :batch-mode? t :save? t :show-progress? nil :web-cel-ov? nil)')
         pmn.info(f'==Saving {org}Cyc==')
         ptools.send_cmd('(save-kb)')
 
