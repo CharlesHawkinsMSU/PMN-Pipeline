@@ -1241,11 +1241,11 @@ class PMNPathwayTools (PathwayTools):
 	def __init__(self, config, args = [], socket = None, env = None, load_pmn_funs = True, x11 = None):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
-        try:
-            timeout = int(config.setdefault('ptools-start-timeout', 60))
-        except ValueError:
-            pmn.warn(f'Value of ptools-start-timeout should be a interger; got "{config["ptools-start-timeout"]}" instead. Going with the default of 60')
-            timeout = 60
+		try:
+			timeout = int(config.setdefault('ptools-start-timeout', 60))
+		except ValueError:
+			pmn.warn(f'Value of ptools-start-timeout should be a interger; got "{config["ptools-start-timeout"]}" instead. Going with the default of 60')
+			timeout = 60
 		if socket is None:
 			socket = path.join(config['proj-sock-dir'], get_run_id() + '.sock')
 		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout, x11 = x11)

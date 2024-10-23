@@ -334,7 +334,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 				pmn.info(f'{org} getting genes from Map file')
 				arg_col.extend(arg_col_map)
 			if not arg_col:
-				pmn.warn(f'No \'Genes From\' column for {org} or no recognizedvalues for the column, will not map proteins to genes')
+				pmn.warn(f'No \'Genes From\' column for {org} or no recognized values for the column, will not map proteins to genes')
 				copy2(in_pf_path, entry['PF File']);
 				continue
 			arg_col.extend(arg_col_gen)
