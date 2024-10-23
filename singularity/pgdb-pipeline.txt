@@ -40,6 +40,9 @@ proj-intermediate-dir = intermediate-pgdbs
 # Path to the directory where Pathway Tools keeps its (user) PGDBs
 ptools-pgdbs = /pmn/ptools-local/pgdbs/user
 
+# How long to wait, in seconds, for Pathway Tools to start before erroring out. If Pathway Tools encounters an error on startup it may only print a message to the console and not tell the pipeline there has been an error, simply hanging at that point, hence the timeout
+ptools-start-timeout = 60
+
 # SAVI common files directory
 proj-common-dir = common
 

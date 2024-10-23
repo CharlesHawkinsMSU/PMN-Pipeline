@@ -1118,7 +1118,7 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile(r'\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 30, x11 = None):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 60, x11 = None):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-lisp' not in args:
@@ -1238,9 +1238,14 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], socket = None, timeout = 30, env = None, load_pmn_funs = True, x11 = None):
+	def __init__(self, config, args = [], socket = None, env = None, load_pmn_funs = True, x11 = None):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
+        try:
+            timeout = int(config.setdefault('ptools-start-timeout', 60))
+        except ValueError:
+            pmn.warn(f'Value of ptools-start-timeout should be a interger; got "{config["ptools-start-timeout"]}" instead. Going with the default of 60')
+            timeout = 60
 		if socket is None:
 			socket = path.join(config['proj-sock-dir'], get_run_id() + '.sock')
 		super().__init__(exe = exe, socket = socket, args = args, env = env, timeout = timeout, x11 = x11)
