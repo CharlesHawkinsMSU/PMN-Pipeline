@@ -1,5 +1,12 @@
 ; General lisp utility functions, not specific to Pathway Tools
 
+(defun concat-tree (tree)
+  (setq s "")
+  (cond ((listp tree) (loop for elt in tree
+			    do (setq s (concatenate 'string s (concat-tree elt)))))
+	(tree (setq s (format nil "~A" tree))))
+  s)
+
 (defparameter tab-re (excl:compile-re "\\t"))
 (defparameter whitespace-re (excl:compile-re "[\\t ]+"))
 (defun read-table-with-header-as-list (tablefile &key (inner-split ";"))

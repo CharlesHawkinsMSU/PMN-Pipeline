@@ -19,7 +19,7 @@ def refine_c(config, orgtable, orglist, ptools = None):
     pt_disp = ptools.send_cmd('(sys:getenv "DISPLAY")')
     pmn.info(f'Ptools reports that DISPLAY is {pt_disp}')
     if not config.setdefault('no-init-gui', False):
-        ptools.send_cmd('(initialize-gui)')
+        ptools.send_cmd('(unless *ecocyc-frame* (initialize-gui))')
     for org in orglist:
         entry = orgtable[org]
         pmn.info(f'==Running checks for {org}Cyc==')

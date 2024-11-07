@@ -1,5 +1,15 @@
 ; Misc utility functions that are specific to pathway tools (for non-ptools-specific utulity functions, see utils.lisp)
 
+(defun find-frame-in-kbs (frame &optional (kbs '(plant meta)))
+  "Looks for the specified frame in the specified kbs, returning the frame from the first kb in the list that contains it, or NIL if none do"
+  (let ((frame (if (frame-p frame)
+		 (gfh frame)
+		 frame)))
+    (loop for k in kbs
+	  for kb = (as-kb k)
+	  when (ctfp frame :kb kb)
+	  do (return (coerce-to-frame frame :kb kb))
+	  finally (return nil))))
 (defun make-frame-index (class slots &key include-subclasses? downcase?)
   "Creates an index of all members of the given frame class using the given list of slots. Returns a hash from slot-values to a list of frames with that value in any of the given slots"
   (loop for frame in (append (when include-subclasses? (get-class-all-subs class))
@@ -85,13 +95,13 @@
 (defun expand-frameset (frameset)
   "Expands the given set of frames. A frame expands to itself. A class expands to all class members. A list expands to the union of the expansions of all list members."
   (labels ((expand-frameset-set (frameset)
-							  (setq exset (empty-set))
-							  (if (listp frameset)
-								(progn (loop for f in frameset do (setq exset (nset-union exset (expand-frameset-set f))))
-									   exset)
-								(if (setq frame (coerce-to-frame frameset))
-								  (if (class-p frame) (set-from-list (gcai frame)) (set-from-list (list frame))) (empty-set)))))
-	(set-to-list (expand-frameset-set frameset))))
+				(setq exset (empty-set))
+				(if (listp frameset)
+				  (progn (loop for f in frameset do (setq exset (nset-union exset (expand-frameset-set f))))
+					 exset)
+				  (if (setq frame (coerce-to-frame frameset))
+				    (if (class-p frame) (set-from-list (gcai frame)) (set-from-list (list frame))) (empty-set)))))
+    (set-to-list (expand-frameset-set frameset))))
 (defun as-kb (kb)
   "Returns kb as a kb. If it is a kb, returns it as-is. If it is not, looks up the kb with (find-kb)"
   (if (kb-p kb)

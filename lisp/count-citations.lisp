@@ -1,5 +1,42 @@
 ; Functions that count things in the database or pull sets of things out from the database
 
+(defun terpenes ()
+  (loop for c in (all-cpds)
+	when (is-terpene c)
+	collect c))
+
+(defun is-terpene (cpd)
+  (setq Carbon (get-frame-named 'C))
+  (setq Hydrogen (get-frame-named 'H))
+  (setq atoms (gsvs cpd 'structure-atoms))
+  (setq num-c 0) ; number of C atoms
+  (setq num-h 0) ; number of H atoms
+  (and ; All conditions must be met
+    ; Return false if no structure; otherwise it would appear to satisfy the requirements
+    (> (length atoms) 0)
+    ; This loop counts the number of C's and any explicit H's, and fails out (returns nil) if any other atoms are found
+    (setq passed-a (loop for a in atoms
+			 do (cond ((eq a Carbon) (setq num-c (+ 1 num-c)))
+				  ((eq a Hydrogen) (setq num-h (+ 1 num-h)))
+				  (t (return nil)))
+			 finally (return t)))
+    ; This progn counts the implicit H's and returns false if the total H's is not a multiple of 8
+    (progn
+      (setq nbonds (make-array (length atoms) :initial-element 0))
+      (loop for (a1 a2 n) in (gsvs cpd 'structure-bonds)
+	    do (setf (aref nbonds (- a1 1)) (+ (aref nbonds (- a1 1)) n))
+	    do (setf (aref nbonds (- a2 1)) (+ (aref nbonds (- a2 1)) n)))
+      (loop for b across nbonds
+		      for i from 0
+		      for a in atoms
+		      when (eq a Carbon)
+		      do (setq num-h (+ num-h (- 4 b))))
+      (= 0 (mod num-h 8)))
+    ; Return false if the number of C's is not in line with the number of H's (if C != H / 8 * 5)
+    (= num-c (* (/ num-h 8) 5))))
+
+
+
 (defun get-all-citations (classes)
   "Gets a nonredundant list of all citations from the 'citations slot in all the given classes"
   (setq cset (empty-set))
