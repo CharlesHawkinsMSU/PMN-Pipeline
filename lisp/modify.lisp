@@ -1,5 +1,17 @@
 ; Lisp functions that modify things in the kb
 
+(defun find-string-nils (frameset &optional slots)
+  (loop for frame in (expand-frameset frameset)
+	when (loop for slot in (or slots (get-frame-slots frame))
+		   thereis (loop for val in (gsvs frame slot)
+			      thereis (equal val "NIL")))
+	collect frame))
+
+(defun fix-string-nils (frameset &optional slots)
+  (loop for frame in (expand-frameset frameset)
+	do (loop for slot in slots
+		 do (remove-slot-value frame slot "NIL"))))
+
 ; The functions read-enzrxn-submission form, add-enzrxn-citation-replacing-e2p2, find-or-create-protein, find-or-create-enzrxn, and find-or-import-rxn are part of the system for importing the PMN Enzyme Submission form. To use this system, separate out the submissions for one species and save to a TSV file. swith to the appropriate KB and call read-enzrxn-submission-form on that file
 (defvar *new-frames* (make-hash-table :test 'equal))
 (defparameter subform-ev-codes

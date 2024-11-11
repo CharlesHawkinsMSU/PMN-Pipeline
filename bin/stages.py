@@ -71,6 +71,8 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 		run_stage('dump', config, orgtable, orglist, args, ptools)
 		run_stage('dump-biopax', config, orgtable, orglist, args, ptools)
 		return 0
+    if stage == 'dump':
+        ptools.send_cmd('(setf *get-orthologs-from-sri-p* nil)')  # Avoid failure of dump due to inability to connect to SRI ortholog server
 	script_path = path.dirname(path.realpath(__file__))
 	stage = stage.lower()
 	if stage == 'newproj':
