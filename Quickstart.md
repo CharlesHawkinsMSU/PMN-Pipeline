@@ -15,19 +15,27 @@ Go to a directory where you keep github projects and type:
     git clone 'https://github.com/CharlesHawkinsMSU/pmn-container'
     cd pmn-container
 
+### Recommended: symlink the pmn.sh script
+
+To be able to call the pipeline by just typing `pmn`, you can make a symlink from the pmn.sh script to somewhere in your PATH. So for example:
+
+    sudo ln -s pmn.sh /usr/local/bin/pmn
+
+The pmn.sh script is a convenience script that lives outside the container and lets you build and run it without having to set up your environment yourself.
+
 ### Download Pathway Tools
 
 Request a Pathway Tools license from http://bioinformatics.ai.sri.com/ptools. They should send you a download link in a day or two. Download pathway-tools-28.0-linux-64-tier1-install and put it in the pmn-container folder.
 
 ### Build the container
 
-If you're on Fedora or otherwise are on a system that uses tempfs, see "Note: Tempfs and disk space" in the full manual; otherwise just type:
+Build the pipeline with:
 
-    SINGULARITY=singularity make pmn-ptools.sif
+    pmn build
 
-(if you use apptainer instead of singularity, begin it with SINGULARITY=apptainer instead)
+(if you use apptainer instead of singularity, prepend it with `SINGULARITY=apptainer`)
 
-It should take some time but will produce pmn-ptools.sif. Move this somewhere in your PATH, or give the full path to it each time you invoke it.
+It should take some time but will produce pmn-ptools.sif. You can now set up your project for a pipeline run.
 
 ## Set up your pipeline run
 
@@ -37,7 +45,7 @@ Navigate to wherever you want the project to be. We will call our project pmntes
 
     mkdir pmntestrun
     cd pmntestrun
-    pmn-ptools.sif newproj
+    pmn newproj
 
 This will populate the new project with some directories and default config files.
 
@@ -89,97 +97,89 @@ The *C. sinensis* 1.1 genome has gene IDs that are the protein IDs with g. added
 
     cat fasta/Csinensis_154_protein.fa | awk -F '|' '$1 ~ />/ {sub(">","",$1); print "g." $1 "\t" $1}' > maps-in/Csinensis.map
 
-### Set environment variables
-
-To run the pipeline via singularity, you need one environment variable set. To set it for the current shell session, enter:
-
-    export SINGULARITY_BIND=pgdbs:/pgdbs
-
-If you don't want to repeat this every time you open a shell, you can put it in .bashrc in your home folder.
-
 ## Run the pipeline
 
 Now we can run the pipeline. It is possible to run it all at once, but we will run it in steps to see the effects of each stage. First, let's have it check that the initial setup and config files look okay. Run:
 
-    pmn-ptools.sif precheck
+    pmn precheck
 
 If there are errors, the Troubleshooting section in the full manual may be of help. Once this step runs without errors, we can continue.
 
 Next, we will split the input fasta files into smaller parts, which are easier for E2P2 to work with:
 
-    pmn-ptools.sif split
+    pmn split
 
 Next up is to run E2P2. This is the most computationally intensive stage. Run it with:
 
-    pmn-ptools.sif e2p2 -s all
+    pmn e2p2 -s all
 
 If it runs without errors, join the split E2P2 output files with:
 
-    pmn-ptools.sif join
+    pmn join
 
 We should now have Csinensis_154_protein.fa.MaxWeightAbsoluteThreshold.orxn.pf in the e2p2 folder. We now need to revise this .pf file to put in the gene IDs we gave in the mapping file earlier:
 
-    pmn-ptoos.sif revise
+    pmn revise
 
 This generates e2p2/Csinensis_154_protein.fa.e2p2.orxn.revised.pf with the gene and protein IDs in their proper places in the file.
 
 Now we need to generate a unique ID for each database. These are used internally by Pathway Tools to indicate where database objects (frames) originated from. To generate them, use:
 
-    pmn-ptools.sif unique-ids
+    pmn unique-ids
 
 This will create uids.txt which contains the generated unique IDs.
 
 We can now prepare to generate the initial database with:
 
-    pmn-ptools.sif prepare
+    pmn prepare
 
 This generates some files in pgdb-masters and copies the .pf and fasta files there for PathoLogic to find. Run PathoLogic to create the database:
 
-    pmn-ptools.sif create
+    pmn create
 
 This will create the initial database and put it in pgdbs/sweetorangecyc. If you have your own install of Pathway Tools, you can copy the initial sweetorangecyc there and inspect it if you wish; just copy the directory into ptools-local/pgdbs/user/ (wherever you placed that during install) and launch Pathway Tools.
 
 There is, however, more to do. The next step is SAVI. This is an opportunity to show running multiple stages at once. We will run three stages; one to dump the flat files, which SAVI needs in order to run; one to copy all the needed files into the savi/input/SweetOrange directory so that savi can find them; and one to run savi:
 
-    pmn-ptools.sif savi-dump savi-prepare savi
+    pmn savi-dump savi-prepare savi
 
 This should generate some output files in savi/output/SweetOrange, the most important being ic.txt and remove.txt, the list of pathways to add and remove, respectively (ic stands for inferred by curator, the evidence code that will be assigned to pathways added at the behest of SAVI). The actual changes will be made during refine-a.
 
 Next are the refine steps. Fist we must prepare for them with:
 
-    pmn-ptools.sif refine-prepare
+    pmn refine-prepare
 
 This will copy the savi results into the pgdb-masters/ directories, generate common files for the refine steps, and generate author, organization, and citation info in AraCyc to be copied to the databases of interst.
 
 Next we can run refine-a:
 
-    pmn-ptools.sif refine-a
+    pmn refine-a
 
 This step applies SAVI's changes, puts in citations for E2P2 and SAVI, and makes other needed refinements. The next thing to run is refine-b:
 
-    pmn-ptools.sif refine-b
+    pmn refine-b
 
 This step looks through PlantCyc and MetaCyc for any pathways and proteins with experimental evidence for *Citrus sinensis* and imports them into the new database.
 
 The final refine step is refine-c:
 
-    pmn-ptools.sif refine-c
+    pmn refine-c
 
 This step runs Pathway Tools' consistency checker and generates the cellular overview. It is fairly computationally intensive and may take a while to run.
 
 Once this runs, we will have a finished database. There are a couple more things we may want to do. To dump all the flatfiles, convenient for analyzing the database's contents using external tools, run:
 
-    pmn-ptools.sif final-dump
+    pmn final-dump
 
 If you want to generate blast databases to search for enzymes by sequence similarity, you can run:
 
-    pmn-ptools.sif blastset
+    pmn blastset
 
 The blast databases will be put in the blastsets/ directory.
 
 If you want to generate the big tabular custom dump files for pathways and compounds, like the ones linked to at (https://plantcyc.org/downloads?qt-downloads=0#qt-downloads) under "tab-delimited text files", run:
 
-    pmn-ptools.sif custom-dumps
+    pmn custom-dumps
 
 Congratulations! You now have a finished PMN-style pathway genome database with all the bells and whistles.
 
