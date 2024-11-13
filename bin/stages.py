@@ -8,6 +8,7 @@ from os import path
 import os
 from shutil import copy2, rmtree
 import subprocess
+import pgdb_prepare
 import create_pgdbs
 import savi_prepare
 import refine_prepare
@@ -32,30 +33,30 @@ stages_nonparallel = {'metadata', 'precheck', 'fa-stats', 'pgdb-stats', 'list', 
 
 # Help text for each stage
 stage_help = {'precheck': 'Runs quick checks on the configuration to make sure pipeline is good to go',
-	      'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
-	      'revise': 'Add in gene IDs to the E2P2 output files',
-	      'unique-ids':'Gets new unique-ids for orgids that don\'t already have them',
-	      'prepare': 'Puts all files in place to create PGDBs',
-	      'create': 'Creates initial PGDBs using PathoLogic',
-	      'savi-dump': 'Dumps PGDBs to flat-files required for SAVI; alias for "dump"',
-	      'savi-prepare': 'Puts all files in place to run SAVI',
-	      'savi': 'Runs SAVI to apply pathway-level curation rules to each new PGDB',
-	      'refine-prepare': 'Generates author and citation frames, and puts all files in place to run refine A',
-	      'refine-a': 'Applies SAVI\'s suggestions for pathways to add/remove; adds in citations for E2P2 and SAVI; fixes common names of enzymatic reactions; adds external database links to enzymes if available',
-	      'refine-b': 'Finds any experimentally-validated pathways and enzymes in the reference database(s) for each species and imports them into the appropriate PGDB',
-	      'refine-c': 'Runs Pathway Tools\' cconsistency checker; generates the cellular overview; assigns the requested authors to each PGDB',
-	      'blastset': 'Generates BLAST dbs for each PGDB so their enzymes can be searched using BLAST',
-	      'final-dump':'Dumps both attribute-value and BioPAX flatfiles (i.e. runs "dump" and "dump-biopax")',
-	      'split': 'Splits input FASTAs into multiple parts so they can be run through E2P2 in parallel (see the -s option); should be run before "e2p2"',
-	      'join': 'Joins the split E2P2 output files for each species into one for each species; should be run before "revise"',
-	      'delete': 'Deletes existing PGDBs listed in the input table',
-	      'dump': 'Dumps attribute-value flat files for each PGDB to pgdbs/<orgid>cyc/<version>/data',
-	      'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
-	      'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
-	      'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
-	      'list-stages': 'List all valid stages in the pipeline',
-	      'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
-	      }
+		  'e2p2': 'Runs E2P2 to predict enzyme functions for the proteins in each input FASTA',
+		  'revise': 'Add in gene IDs to the E2P2 output files',
+		  'unique-ids':'Gets new unique-ids for orgids that don\'t already have them',
+		  'prepare': 'Puts all files in place to create PGDBs',
+		  'create': 'Creates initial PGDBs using PathoLogic',
+		  'savi-dump': 'Dumps PGDBs to flat-files required for SAVI; alias for "dump"',
+		  'savi-prepare': 'Puts all files in place to run SAVI',
+		  'savi': 'Runs SAVI to apply pathway-level curation rules to each new PGDB',
+		  'refine-prepare': 'Generates author and citation frames, and puts all files in place to run refine A',
+		  'refine-a': 'Applies SAVI\'s suggestions for pathways to add/remove; adds in citations for E2P2 and SAVI; fixes common names of enzymatic reactions; adds external database links to enzymes if available',
+		  'refine-b': 'Finds any experimentally-validated pathways and enzymes in the reference database(s) for each species and imports them into the appropriate PGDB',
+		  'refine-c': 'Runs Pathway Tools\' cconsistency checker; generates the cellular overview; assigns the requested authors to each PGDB',
+		  'blastset': 'Generates BLAST dbs for each PGDB so their enzymes can be searched using BLAST',
+		  'final-dump':'Dumps both attribute-value and BioPAX flatfiles (i.e. runs "dump" and "dump-biopax")',
+		  'split': 'Splits input FASTAs into multiple parts so they can be run through E2P2 in parallel (see the -s option); should be run before "e2p2"',
+		  'join': 'Joins the split E2P2 output files for each species into one for each species; should be run before "revise"',
+		  'delete': 'Deletes existing PGDBs listed in the input table',
+		  'dump': 'Dumps attribute-value flat files for each PGDB to pgdbs/<orgid>cyc/<version>/data',
+		  'dump-biopax': 'Dumps BioPAX XML files for each pgdb (normally run as part of final-dump)',
+		  'checker': 'Performs the Pathway Tools consistency checker on each PGDB (normally run as part of refine-c)',
+		  'list': 'List all (or requested with -o) PGDBs in the input file with their index numbers',
+		  'list-stages': 'List all valid stages in the pipeline',
+		  'clean': 'Clean temporary files, including pipeline logs, SLURM logs, and E2P2 temporary files',
+		  }
 
 if __name__ == "__main__":
 	stderr.write('stages.py is a library that contains the PMN pipeline stage definitions and code for running them. It does nothing when executed directly. Use pmn-pipeline.py to run the pipeline\n')
@@ -280,10 +281,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 
 	elif stage == 'prepare':
 		pmn.message(pmn.blue_text('==Preparing master files=='))
-		prepare_result = pmn.run_external_process([path.join(script_path, 'pgdb-prepare.pl'), org_filename, config['proj-e2p2-dir'], config['proj-masters-dir'], config['ptools-exe'], ','.join(orglist)], procname = 'Prepare')
-		if prepare_result != 0:
-			pmn.error('Prepare script failed')
-			exit(prepare_result)
+		pgdb_prepare.pgdb_prepare(config, orgtable, orglist)
 
 	elif stage == 'create':
 		pmn.message(pmn.blue_text('==Creating PGDBs with PathoLogic=='))

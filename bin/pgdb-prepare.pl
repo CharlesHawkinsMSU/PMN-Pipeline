@@ -32,6 +32,7 @@ my $pf_dir = $ARGV[1];
 my $masters_dir = $ARGV[2];
 my $ptools = $ARGV[3];
 my @orglist = split(/,/, $ARGV[4]);
+my $uids_file = $ARGV[5];
 
 $|=1;   # Output prior
 
@@ -41,7 +42,7 @@ $masters_dir =~ s!/$!!;
 mkdir $masters_dir;
 
 # read input table file
-my %pgdb_table = pmn::read_pgdb_table($table_file);
+my %pgdb_table = pmn::read_pgdb_table($table_file, $uids_file);
 
 # for each species
 

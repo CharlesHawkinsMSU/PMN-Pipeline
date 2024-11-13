@@ -20,12 +20,13 @@ my @individual_required_fields;
 @individual_required_fields = ("Database ID");
 # @required_fields are required, but can be specified using /default
 my @required_fields;
-@required_fields = ("Authors", "Curator", "Version", "Citation Year", "Species Name", "NCBI Taxon ID", "Sequence File", "Unique ID", "Seq Source");
+@required_fields = ("Authors", "Curator", "Version", "Citation Year", "Species Name", "NCBI Taxon ID", "Sequence File", "Seq Source");
 my @all_required_fields;
 @all_required_fields = (@individual_required_fields, @required_fields);
 sub read_pgdb_table
 {
 	my $table_filename = shift;
+	my $uids_filename = shift;
 	my %pgdb_table;
 	my %req_fields_empty;   # Keys are @required_fields; value is true if at least one db has no value for that field
 	my %req_fields_default; # Keys are @required_fields; value is true if /default has a value for that field
