@@ -4,7 +4,7 @@ This is a quick set of steps to get up and running with the PMN pipeline. A full
 
 ## What you'll need
 
-To run the pipeline, you will need an x86_64-based computer with Linux. You will need to download the pipeline build scripts, and get a copy of Pathway Tools. You will then need a set of full amino acid sequences from your organism of interest.
+To run the pipeline, you will need an x86_64-based computer with Linux. You will need to download the pipeline build scripts, and get a copy of Pathway Tools. You will then need a set of full amino acid sequences from your organism of interest. You will also need Singularity (we recommend Singularity CE over Apptainer as the former is what we test the pipeline with) and GNU Make installed.
 
 ## Getting ready
 
