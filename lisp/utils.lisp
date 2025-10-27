@@ -176,8 +176,8 @@
   "Print some number of tabs"
   (format out-stream "~v@{~A~:*~}" tabs indent-char))
 
-(defun write-list (stream list)
-  "Writes list to stream, one per line. Elements of list should be of a type printable with \"~A\"."
+(defun write-list (list where)
+  "Writes list to where (a stream or filename), one per line. Elements of list should be of a type printable with \"~A\"."
   (if (streamp stream)
 	(loop for elt in list do (format stream "~A~%" elt))
 	(with-open-file (fd stream :direction :output :if-exists :supersede)
@@ -321,12 +321,12 @@
 
 (defun write-list-n (list seps stream)
   "Writes the given list of depth n (i.e. a list of lists is of depth 2, a list of lists of lists is depth 3, etc.) to the given stream, using the strings in seps to separate the different list levels. Seps should be a list of length n, containing strings. The argument stream is passed directly to (format) so t and nil have the usual behavior"
-	(let ((fmt-str (format nil "~~{~~A~~^~A~~}" (first seps))))
-	  (if (listp list)
-		(format stream fmt-str
-				(loop for elt in list
-					  collect (write-list-n elt (rest seps) nil)))
-		(format stream "~A" list))))
+  (to-file-or-stream stream (let ((fmt-str (format nil "~~{~~A~~^~A~~}" (first seps))))
+			      (if (listp list)
+				(format stream fmt-str
+					(loop for elt in list
+					      collect (write-list-n elt (rest seps) nil)))
+				(format stream "~A" list)))))
 
 (defun write-list-3 (list where)
   "Writes a list of lists of lists to the given stream or filename (\"where\"). Outermost list is newline-separated. Second level is tab-separated. Innermost lists are semicolon-separated"
@@ -437,6 +437,30 @@
 (defun empty-set ()
   "Creates a new, empty set"
   (make-hash-table :test 'equal))
+
+(defun html-tag (tag attrs &rest contents)
+  "Emits the specified tag to the given stream"
+  (format nil "<~A~A~{~A=\"~A\"~^ ~}~A>~{~A~}~A"
+	  tag
+	  (if attrs " " "")
+	  attrs
+	  (if contents "" "/")
+	  (flatten contents)
+	  (if contents
+	    (format nil "</~A>"
+		    tag)
+	    "")))
+
+(defun list-to-html-table-row (list &key (tag "td") row-attrs col-attrs)
+  (html-tag "tr" row-attrs
+	    (loop for item in list
+		  collect (html-tag tag col-attrs item))))
+
+(defun alist-to-html-table (alist &key table-attrs row-attrs col-attrs)
+  (html-tag "table" table-attrs
+	    (list-to-html-table-row (first alist) :tag "th" :row-attrs row-attrs :col-attrs col-attrs)
+	    (loop for row in (rest alist)
+		  collect (list-to-html-table-row row :row-attrs row-attrs :col-attrs col-attrs))))
 
 ; Utility functions copied from elsewhere
 

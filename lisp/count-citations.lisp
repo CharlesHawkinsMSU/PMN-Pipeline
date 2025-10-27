@@ -1,5 +1,92 @@
 ; Functions that count things in the database or pull sets of things out from the database
 
+(defun cpd-formulas-table (orgids file)
+  (to-file-or-stream file
+	  (loop-orgids orgids closing
+		       with found = (empty-set)
+		       do (loop for c in (all-cpds)
+				for h = (gfh c)
+				unless (gethash h found)
+				do (format stream "~A	~A~%" h (get-molecular-formula c))
+				and do (add-to-set h found)))))
+
+(defun get-molecular-formula (c)
+  (let ((l (gsvs c 'chemical-formula)))
+    (when l
+      (loop for (e n) in l
+	    when (and (ctfp e) (not (instance-all-instance-of-p e '|Elements|)))
+	    do (return nil)
+	    do (nstring-capitalize (symbol-name e)))
+      (format nil "~{~{~A~A~}~}" l))))
+
+; Functions for finding unbalanced reactions
+(defun unbalanced-table ()
+  "Returns a table (list of lists) with the output of the balance checker run on all reactions"
+  (loop for r in (all-rxns)
+	do (format t "~A~%" (gfh r))
+	collect (list
+		  (gfh r)
+		  ;(yn (rxn-balanced? r))
+		  (yn (reaction-balanced-p r))
+		  )))
+
+; Functions for mass-instantiating reactions
+(defun write-rxn-instantiation-table (where &key existing)
+  (let ((table (or existing (make-rxn-instantiation-table))))
+    (write-list-n
+      (cons '("Generic Rxn"
+	      "Valid Instances"
+	      "Invalid Instances"
+	      "Non-unique Instances"
+	      "Result Code")
+	    table)
+      '("~%" "	" "//" "=" ";")
+      where)))
+
+(defun make-rxn-instantiation-table ()
+  (loop for r in (all-class-rxns)
+	do (multiple-value-setq (a b c d)
+	     (generic-rxn-instantiation r :force-all-instantiations t))
+	collect (to-handles (list r a b c d))))
+
+(defparameter *ec-to-rxn* (make-hash-table))
+(defun rxns-with-cpds-on-opposite-sides (cpd1 cpd2)
+  (let ((cpd1 (coerce-to-frame cpd1))
+	(cpd2 (coerce-to-frame cpd2)))
+    (when (and cpd1 cpd2)
+      (loop for candidate-rxn
+	    in (set-to-list
+		 (set-intersect
+		   (set-from-list (reactions-of-compound cpd1))
+		   (set-from-list (reactions-of-compound cpd2))))
+	    when (or
+		   (and (find cpd1 (gsvs candidate-rxn 'left))
+			(find cpd2 (gsvs candidate-rxn 'right)))
+		   (and (find cpd2 (gsvs candidate-rxn 'left))
+			(find cpd1 (gsvs candidate-rxn 'right))))
+	    collect candidate-rxn))))
+
+(defun index-ecs ()
+  "For the current kb, creates a hash mapping from ec numbers to reactions and stores it in *ec-to-rxn* under the current orgid"
+  (puthash (current-orgid)
+	   (loop with d = (make-hash-table :test 'string-equal)
+		 for r in (all-rxns)
+		 do (loop for e in (gsvs r 'ec-number)
+			  do (append-hash-list e (gfh r) d))
+		 finally (return d)) *ec-to-rxn*))
+
+(defun frames-in-one-pgdb (class kb1 kb2)
+  "Returns a list of frames of the specified class that exist in kb1 but not in kb2"
+  (let ((o1 (as-orgid kb1))
+	(o2 (as-orgid kb2))
+	(k2 (as-kb kb2)))
+    (so o2)
+    (so o1)
+    (loop for f in (gcai class)
+	  for fh = (gfh f)
+	  unless (coercible-to-frame-p fh :kb k2)
+	  collect fh)))
+
 (defun terpenes ()
   (loop for c in (all-cpds)
 	when (is-terpene c)
@@ -135,11 +222,11 @@
 	(to-file-or-stream
 	  file
 	  (format stream "~A only in ~A (~A):~%" class org1 (length only1))
-	  (write-list stream only1)
+	  (write-list only1 stream )
 	  (format stream "~A only in ~A (~A):~%" class org2 (length only2))
-	  (write-list stream only2)
+	  (write-list only2 stream )
 	  (format stream "~A in both ~A and ~A (~A):~%" class org1 org2 (length common))
-	  (write-list stream common))))
+	  (write-list common stream ))))
 	  
 
 (setq tps-ec '("4.2.3.12" "4.2.3.47" "4.2.3.88" "4.2.3.101" "4.2.3.102" "4.2.3.123"))
@@ -633,10 +720,12 @@
   "Looks through the given reference database (by default plantcyc) and examines the frames of the given class for which taxids each of them is annotated to via the given slot (by default 'species). Returns an alist of all such taxids, their common name, and the number of frames annotated to them"
   (so ref)
   (let ((table (make-hash-table)))
-	(loop for frame in (get-class-all-instances class)
-		  do (loop for species in (get-slot-values frame slot)
-				   do (inc-hash-count species table)))
-	(loop for taxid being the hash-keys in table collect (list (get-frame-handle taxid) (get-slot-value taxid 'common-name) (gethash taxid table)))))
+    (loop for frame in (expand-frameset class)
+	  do (loop for taxon in (get-slot-values frame slot)
+		   for species = (when taxon (get-species-above taxon))
+		   when species
+		   do (inc-hash-count (get-species-above species) table)))
+    (loop for taxid being the hash-keys in table collect (list (get-frame-handle taxid) (get-slot-value taxid 'common-name) (gethash taxid table)))))
 									
 (defun num-pathways-for-taxon (taxon &key (ref 'meta))
   "Gets a count of all pathways annotated to the taxon or any sub- or super-taxa"
@@ -739,6 +828,14 @@
 	"Get enzrxns catalyzed by an enzyme"
 		(get-slot-values (get-frame-named enz) 'CATALYZES))
 
+(defun count-all-citations (&key (class 'frames))
+  "Returns a nonreduntant count of all citations actually referenced by frames in a 'CITATIONS slot"
+  (set-length
+    (loop for f in (frames-that-have class 'citations)
+	  with s = (empty-set)
+	  do (loop for c in (gsvs f 'citations)
+		   do (add-to-set (extract-citation-from-string c) s))
+	  finally (return s))))
 (defun count-citations-for-enzrxn (enzrxn)
 	"Count the number of evidence citations in a particular enzrxn"
 	(loop for cit in (enzrxns-for-enz enz) count (search "EV" cit)))
@@ -959,7 +1056,7 @@
 (defun all-enzrxns () (gcai "Enzymatic-Reactions"))
 (defun all-publications () (gcai "Publications"))
 (defun all-class-rxns ()
-  (loop for r in (all-rxns)
+  (loop for r in (gcai "Reactions")
 		when (loop for c in (append (gsvs r 'left) (gsvs r 'right))
 				   thereis (class-p c))
 		collect r))

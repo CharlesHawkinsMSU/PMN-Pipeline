@@ -1,5 +1,25 @@
 ; Misc utility functions that are specific to pathway tools (for non-ptools-specific utulity functions, see utils.lisp)
 
+(defun italicize-orgid-name (&optional (orgid (current-orgid)))
+  "Italicizes the first two words of the orgid's common name if the orgid is of any taxonomic rank. Having no taxonomic rank generally means a multi-species reference db like PlantCyc or MetaCyc which shouldn't get italics"
+  (so orgid)
+  (if (gsv orgid 'rank)
+    (italicize-species-name (org-name))
+    (org-name)))
+
+(defun italicize-species-name (taxname)
+  "Italicizes the first two words of the (string) argument (with html formatting). There is a special case where the second word is \"x\" or \"X\", in which case it italicizes the first and third words, and replaces the x with \"&times;\". This is specifically to deal with crosses like Fragaria x ananassa, which should be rendered as <i>Fragaria</i> &times; <i>ananassa</i>"
+  (let ((words (excl:split-re whitespace-re taxname)))
+    (if (< (length words) 3)
+      (html-tag "i" nil taxname)
+      (if (string-equal (second words) "x")
+	(format nil "~A &times; ~A~{ ~A~}"
+		(html-tag "i" nil (first words))
+		(html-tag "i" nil (third words))
+		(subseq words 3))
+	(format nil "~A ~{~A~^ ~}"
+		(html-tag "i" nil (format nil "~A ~A" (car words) (cadr words)))
+		(subseq words 2))))))
 (defun find-frame-in-kbs (frame &optional (kbs '(plant meta)))
   "Looks for the specified frame in the specified kbs, returning the frame from the first kb in the list that contains it, or NIL if none do"
   (let ((frame (if (frame-p frame)

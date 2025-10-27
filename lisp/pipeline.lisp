@@ -28,6 +28,36 @@
 						    (length (gcai '|Compounds|))
 						    (length (gcai '|Publications|)))
 					  closing)))))
+(defun drupal-list-of-pgdbs (pgdbs file)
+  "Exports the table for https://plantcyc.org/list-of-pgdbs as an html file"
+  (to-file-or-stream file
+		     (format stream "~A~%"
+			     (alist-to-html-table
+			       (cons '("DATABASE" "VERSION" "PATHWAYS" "ENZYMES" "REACTIONS" "COMPOUNDS" "CITATIONS")
+				     (mapcar #'rest
+				       (sort 
+					     (loop-orgids pgdbs
+							  collect (list
+								    (org-name); This is only for sorting; it will be removed from the final table
+								    (drupal-table-org-link)
+								    (kb-version (find-kb org))
+								    (length (gcai '|Pathways|))
+								    (length (gcai '|Proteins|))
+								    (length (gcai '|Reactions|))
+								    (length (gcai '|Compounds|))
+								    (length (gcai '|Publications|)))
+							  closing)#'species< :key #'first)))))))
+(defun species< (species1 species2)
+  "Comparison of two species names that puts PlantCyc at the top but otherwise sorts by species name. Used in the drupal species table"
+  (if (string-equal species2 "PlantCyc")
+    nil
+    (if (string-equal species1 "PlantCyc")
+      0
+      (string< species1 species2))))
+(defun drupal-table-org-link (&optional (orgid (current-orgid)))
+  "Returns a link to the given orgid with its species as the text"
+  (so orgid)
+  (html-tag "a" `("href" ,(format nil "https://pmn.plantcyc.org/organism-summary?object=~A" orgid)) (italicize-orgid-name orgid)))
 
 ; refine-a functions
 (defun e2p2-enzrxn-citations (citation &key (kb (current-kb)))

@@ -469,15 +469,15 @@
 		(gethash (get-slot-value frame 'accession-2) frame-hash)
 		(loop for syn in (get-slot-values frame 'synonyms) when (gethash syn frame-hash) return it))))
 
-(defun make-indexes-if-needed (&key (kb (current-kb)))
+(defun make-indexes-if-needed (&key (kb (current-kb)) ignore-dups)
   "Creates the gene and protein indexes for the given kb if they have not already been created"
   (let (org (as-orgid kb))
 	(when (not (gethash org *gene-index*))
-	  (make-index :class "Genes" :table *gene-index* :kb kb))
+	  (make-index :class "Genes" :table *gene-index* :kb kb :ignore-dups ignore-dups))
 	(when (not (gethash org *prot-index*))
-	  (make-index :class "Proteins" :table *prot-index* :kb kb))))
+	  (make-index :class "Proteins" :table *prot-index* :kb kb :ignore-dups ignore-dups))))
 
-(defun make-index (&key class table (kb (current-kb)))
+(defun make-index (&key class table (kb (current-kb)) ignore-dups)
   "Creates an index from accession-1 or accession-2 values to frames of the given class for the given kb and puts it in the given hash-table under the current orgid"
   (let ((org (as-orgid kb))
 		(frame-hash (make-hash-table :test 'equal)))
@@ -488,6 +488,7 @@
 				   when (setq slotval (get-slot-value g slot))
 				   when (not (string-equal slotval "NIL"))
 				   when (setq conflicting-gene (gethash slotval frame-hash))
+				   when (not ignore-dups)
 				   do (finish-output)
 				      (error (format nil "~A and ~A in ~A have the same accession, ~A"
 									 (get-frame-handle g)

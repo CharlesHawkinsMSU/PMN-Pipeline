@@ -1,5 +1,6 @@
 ; Lisp functions that modify things in the kb
 
+
 (defun find-string-nils (frameset &optional slots)
   (loop for frame in (expand-frameset frameset)
 	when (loop for slot in (or slots (get-frame-slots frame))
@@ -187,66 +188,85 @@
   "Passed citation text as appears in a 'CITATIONS slot or annotation, returns the actual citation from it, with quotes, brackets, and trailing information after the : stripped off. Returns NIL if nothing that looks like a citation can be found in the given text. Does not check that such a citation actually exists in the current kb. Second return value is the span of the citation as an improper list (e.g. '(0 . 11))"
   (multiple-value-bind (matched full grp) (excl:match-re citation-re citation-text :return :index)
 	(values (when grp (subseq citation-text (first grp) (rest grp))) grp)))
+
 ; Functions to add ChEBI links to compounds using chebi_core.obo
-(defvar *inchi-to-chebi* (make-hash-table :test 'equal))
-(defvar *inchikey-to-chebi* (make-hash-table :test 'equal))
-(defvar *smiles-to-chebi* (make-hash-table :test 'equal))
-(defvar *mol-to-chebi* (make-hash-table :test 'equal))
+(defvar *inchi-to-chebi* (make-hash-table :test 'equal :size 200000))
+(defvar *inchikey-to-chebi* (make-hash-table :test 'equal :size 200000))
+(defvar *smiles-to-chebi* (make-hash-table :test 'equal :size 200000))
+(defvar *mol-to-chebi* (make-hash-table :test 'equal :size 200000))
 
 (defun read-chebi-obo (chfile)
   "Reads in chebi_core.obo and generates hashes mapping from inchi, inchikey, and SMILES to ChEBI IDs"
   (from-file-or-stream chfile
-					   (loop while (next-term stream)
-							 for n from 1
-							 when (= 0 (mod n 5000))
-							 do (format t "Read ~A ChEBIs~%" n)
-							 do (let (inchi inchikey smiles chebi)
-								  (loop for line = (read-line stream nil nil)
-										while (> (length line) 0)
-										for (key . vals) = (excl:split-re ": " line)
-										do (setq val (string-trim " " (first vals)))
-										when (string-equal key "id")
-										do (setf chebi (second (excl:split-re ":" val)))
-										when (string-equal key "property_value")
-										do (let* ((properties (excl:split-re " " val))
-												  (property (first properties))
-												  (property-val (string-trim "\"" (second properties))))
-											 (cond ((string-equal property "http://purl.obolibrary.org/obo/chebi/inchi") (setf inchi property-val))
-												   ((string-equal property "http://purl.obolibrary.org/obo/chebi/inchikey") (setf inchikey property-val))
-												   ((string-equal property "http://purl.obolibrary.org/obo/chebi/smiles") (setf smiles property-val))
-												   ;(t (format t "(~A: ~A)~%" property property-val))
-												   )))
-								  (when chebi
-									(when inchi (puthash inchi chebi *inchi-to-chebi*))
-									(when inchikey (puthash inchikey chebi *inchikey-to-chebi*))
-									(when smiles
-									  (puthash smiles chebi *smiles-to-chebi*)
-									  (handler-case (puthash (parse-smiles smiles) chebi *mol-to-chebi*) (smiles-error () nil))))))))
+		       (loop while (next-term stream)
+			     for n from 1
+			     when (= 0 (mod n 5000))
+			     do (format t "Read ~A ChEBIs~%" n)
+			     do (let (inchi inchikey smiles chebi)
+				  (loop for line = (read-line stream nil nil)
+					while (> (length line) 0)
+					for (key . vals) = (excl:split-re ": " line)
+					do (setq val (string-trim " " (first vals)))
+					when (string-equal key "id")
+					do (setf chebi (second (excl:split-re ":" val)))
+					when (string-equal key "property_value")
+					do (let* ((properties (excl:split-re " " val))
+						  (property (first properties))
+						  (property-val (string-trim "\"" (second properties))))
+					     (cond ((string-equal property "http://purl.obolibrary.org/obo/chebi/inchi") (setf inchi (inchi-with-layer-removed property-val #\p)))
+						   ;((string-equal property "http://purl.obolibrary.org/obo/chebi/inchikey") (setf inchikey property-val))
+						   ;((string-equal property "http://purl.obolibrary.org/obo/chebi/smiles") (setf smiles property-val))
+						   ;(t (format t "(~A: ~A)~%" property property-val))
+						   )))
+				  (when chebi
+				    (when inchi (puthash inchi chebi *inchi-to-chebi*))
+				    (when inchikey (puthash inchikey chebi *inchikey-to-chebi*))
+				    (when smiles
+				      (puthash smiles chebi *smiles-to-chebi*)
+				      (handler-case (puthash (parse-smiles smiles) chebi *mol-to-chebi*) (smiles-error () nil))))))))
 
+(setq slash-re (excl:compile-re "/"))
+(defun inchi-with-layer-removed (inchi remove-layer)
+  "Returns the given InChI with the specified layer removed. \"InChI=\" is prepended if the string doesn't already have it. <remove-layer> should be a character, as in #\\p to remove the protonation layer"
+  (let* ((inchi-ne (first (last (excl:split-re equals-re inchi))))
+	 (layers (excl:split-re slash-re inchi-ne)))
+    (format nil "inchi=~{~a~^/~}"
+	    (loop for layer in layers
+		  unless (eq remove-layer (char layer 0))
+		  collect layer))))
 
 (defun next-term (chfile)
   "Advances the stream chfile to the line following the next [term] line"
   (loop for line = (read-line chfile nil nil) while line when (string-equal line "[term]") return t))
 
+(setq equals-re (excl:compile-re "="))
+(defun chebis-of-cpd (cpd)
+  (loop for l in (gsvs cpd 'dblinks)
+	when (eq (first l) 'chebi)
+	collect (second l)))
 (defun suggest-chebi-links (filename)
   "Creates a table of suggested chebi links for compounds in the current pgdb"
-	(to-file-or-stream filename
-					   (loop for cpd in (all-cpds)
-							 for options = (empty-set)
-							 unless (assoc 'chebi (get-slot-values cpd 'dblinks))
-							 do (when (setq smiles (gethash (get-slot-value cpd 'smiles) *smiles-to-chebi*))
-								  (add-to-set smiles options))
-							 and do (when (setq inchi (gethash (get-slot-value cpd 'inchi) *smiles-to-chebi*))
-								  (add-to-set smiles options))
-							 and do (when (setq inchi-key (gethash (get-slot-value cpd 'inchi-key) *smiles-to-chebi*))
-								  (add-to-set smiles options))
-							 and do (handler-case
-									  (when (setq mol (when (setq csmiles (get-slot-value cpd 'smiles))
-														(gethash (parse-smiles csmiles) *mol-to-chebi*)))
-										(add-to-set mol options))
-									  (smiles-error () nil))
-							 ;and when (> (set-length options) 0)
-							 and do (format stream "~A	~{~A~^	~}~%" (get-frame-handle cpd) (set-to-list options)))))
+  (to-file-or-stream filename
+		     (format stream "Compound	Existing	Suggestion Found?	Suggestions~%")
+		     (loop for cpd in (all-cpds)
+			   for options = (empty-set)
+			   ;unless (assoc 'chebi (get-slot-values cpd 'dblinks))
+			   do (setq cheb_entry (assoc 'chebi (get-slot-values cpd 'dblinks)))
+			   do (when (setq smiles (gethash (get-slot-value cpd 'smiles) *smiles-to-chebi*))
+				(add-to-set smiles options))
+			   do (when (setq inchi-key (gethash (first (last (excl:split-re equals-re (get-slot-value cpd 'inchi-key)))) *inchikey-to-chebi*))
+				(add-to-set inchi-key options))
+			   do (when (setq inchi (gethash (inchi-with-layer-removed (get-slot-value cpd 'inchi) #\p) *inchi-to-chebi*))
+				(add-to-set inchi options))
+			   do (handler-case
+				(when (setq mol (when (setq csmiles (get-slot-value cpd 'smiles))
+						  (gethash (parse-smiles csmiles) *mol-to-chebi*)))
+				  (add-to-set mol options))
+				(smiles-error () nil))
+			   when (> (set-length options) 0)
+			   do (setq boo (list cpd smiles inchi inchi-key options))
+			   do (setq loptions (set-to-list options))
+			   do (format stream "~A	~{~A~^;~}	~A	~{~A~^	~}~%" (get-frame-handle cpd) (chebis-of-cpd cpd) (yn (when cheb_entry (find (second cheb_entry) loptions :test 'equal))) loptions))))
 
 (defun find-smiles-match (cpd)
   (handler-case
