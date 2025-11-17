@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 from sys import stdin, stdout, stderr
-import pmn
 import re
 import sys
 from os import path
 import os
 from shutil import copy2, rmtree
+
+import pmn
+import util
 import subprocess
 import pgdb_prepare
 import create_pgdbs
@@ -334,7 +336,10 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 				pmn.info(f'{org} getting genes from Map file')
 				arg_col.extend(arg_col_map)
 			if not arg_col:
-				pmn.warn(f'No \'Genes From\' column for {org} or no recognized values for the column, will not map proteins to genes')
+				if arg_col == 'none':
+					pmn.info(f'{org} will not have gene IDs')
+				else:
+					pmn.warn(f'No \'Genes From\' column for {org} or no recognized values for the column, will not map proteins to genes')
 				copy2(in_pf_path, entry['PF File']);
 				continue
 			arg_col.extend(arg_col_gen)
@@ -517,7 +522,7 @@ def run_stage(stage, config, orgtable, orglist, args, ptools = None):
 					os.remove(path.join(ov_dir, ov_file))
 					deleted_files.append(ov_file)
 			if deleted_files:
-				pmn.info(f'Deleted cached overview files {pmn.andlist(deleted_files)} from {ov_dir}')
+				pmn.info(f'Deleted cached overview files {util.andlist(deleted_files)} from {ov_dir}')
 			else:
 				pmn.info(f'No cached overview files to delete in {ov_dir}')
 		else:
@@ -641,9 +646,9 @@ def compile_stage_list(requested_stages):
 			stage_list.append(stage_sequence[i])
 	return stage_list
 
-# Given a request for a set of splits to run, usually from the -s argument, converts it into a range or pmn.multi_range that can be iterated over
+# Given a request for a set of splits to run, usually from the -s argument, converts it into a range or util.multi_range that can be iterated over
 def split_range(split_req, config):
-	return range(1, int(config['split-fa-num-files'])+1) if split_req == 'all' else pmn.multi_range(split_req)
+	return range(1, int(config['split-fa-num-files'])+1) if split_req == 'all' else util.multi_range(split_req)
 
 # Generator that iterates over the splits for a given org. Yields 2-ples of (Nth split fasta file, Nth split E2P2 pf file)
 def splits_for_org(config, orgtable, org, split_req):

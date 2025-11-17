@@ -23,6 +23,7 @@
   (load (concat *pmn-lisp-folder* "ravi.lisp"))
   (load (concat *pmn-lisp-folder* "savi.lisp"))
   (load (concat *pmn-lisp-folder* "curation.lisp"))
+  (load (concat *pmn-lisp-folder* "generic-rxns.lisp"))
   )
 (load-pmn-funs)
 (so 'meta)

@@ -22,6 +22,7 @@ import time
 import threading
 import fcntl
 
+import util
 
 if __name__ == "__main__":
 	stderr.write("The pmn.py file contains utility functions used by the other PMN python scripts; it doesn't do anything when run directly. The pipeline is mostly run via the pmn-pipeline script\n")
@@ -121,61 +122,6 @@ def ask_yesno(prompt, y_flag = False, unknown_is_no = False):
 		except KeyboardInterrupt:
 			return False
 
-# Given a list (or other iterable) of strings (or objects that are convertible to strings), returns an English-style list of them; e.g. "Alice, Bob, and Carol" is returned for andlist(["Alice", "Bob", "Carol"]).
-#  <oxford> turns on or off the Oxford comma (a comma after the penultimate element when there are at least three elements)
-#  <copula> is the copula to use (generally this will be "and" or "or")
-#  <quote> can be used to put quotes or brackets around the list items and should be a string of one or two characters (depending on whether you want different start and end quote characters), so for example '"' will put quote marks or '()' will put parens. You can also give quote = True as a synonym for '"', to make it easier to use in e.g. f-strings
-#  Examples:
-#   andlist(['Hello', 'Goodbye']) -> "Hello and Goodbye"
-#   andlist(['This', 'That', 'T\'other']) -> "This, That, and T'Other"
-#   andlist(['This', 'That', 'T\'other'], oxford = False) -> "This, That and T'Other"
-#   andlist(['To be', 'not to be'], cop = 'or') -> "To be or not to be"
-#   andlist(['a','b','c'], quote='"') -> '"a", "b", and "c"'
-#   andlist(['a','b','c'], quote='[]') -> '[a], [b], and [c]'
-def andlist(l, oxford = True, copula = 'and', quote = None):
-	l = [f'{quote[0]}{element}{quote[-1]}' for element in l] if quote else list(l)
-	if quote == True:
-		quote = '"'
-	match len(l):
-		case 0: 
-			return ''
-		case 1:
-			return f'{l[0]}'
-		case 2:
-			return f'{l[0]} {copula} {l[1]}'
-		case _:
-			return f'{", ".join(l[:-1])}{"," if oxford else ""} {copula} {l[-1]}'
-
-# Convert the input value to a list. None returns an empty list. Iterables other than strings return themselves converted to a list. Strings and non-iterables return themselves put into a one-item list
-def as_list(val):
-	if val is None:
-		return []
-	elif isinstance(val, str):
-		return [val]
-	else:
-		try:
-			iter(val)
-			return list(val)
-		except TypeError:
-			return [val]
-
-def multi_range(instr):
-	if type(instr) == int:
-		yield instr
-		return
-	for range_spec in instr.split(','):
-		start_end=range_spec.split('-')
-		if len(start_end) == 1:
-			yield int(range_spec)
-		elif len(start_end) == 2:
-			start = int(start_end[0])
-			end = int(start_end[1])
-			if start > end:
-				warn(f'Requested range from {start} to {end} but {start} is greater than {end}; ignoring this range')
-			for i in range(start, end+1):
-				yield i
-		else:
-			raise ValueError(f'Invalid range: "range_spec"')
 
 def dir_for_org(org, config):
 	return path.join(config['ptools-pgdbs'], org.lower()+'cyc')
@@ -440,7 +386,7 @@ def read_pgdb_table(tables, config):
 			unrecognized_columns = set(header) - recognized_columns
 			if unrecognized_columns:
 				plural = len(unrecognized_columns) > 1
-				uc_andlist = andlist(unrecognized_columns, quote = "\"")
+				uc_andlist = util.andlist(unrecognized_columns, quote = "\"")
 				message(f'Column{"s" if plural else ""} {uc_andlist} in {table} are not used in the pipeline and will be ignored', attn = 'Note', attn_style = [green_text, bold_text])
 			line_n = 1
 			for line in tablefile:
@@ -809,6 +755,7 @@ def check_env():
 def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
 	passed = True
 	for f in files:
+		info(f'Checking for file {f}')
 		if not os.path.exists(f):
 			error(f'File {f}, required by {progname}, was not found')
 			passed = False
@@ -816,6 +763,7 @@ def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
 			error(f'File {f}, required by {progname}, exists but is not a standard file or a symlink to a standard file')
 			passed = False
 	for d in dirs:
+		info(f'Checking for directory {d}')
 		if not os.path.exists(d):
 			error(f'Directory {d}, required by {progname}, was not found')
 			passed = False
@@ -823,6 +771,7 @@ def check_exists(files = [], dirs = [], sockets = [], progname = 'this script'):
 			error(f'Directory {d}, required by {progname}, exists but is not a directory')
 			passed = False
 	for s in sockets:
+		info(f'Checking for socket {s}')
 		if not os.path.exists(s):
 			error(f'Socket {s}, required by {progname}, was not found')
 			passed = False
@@ -963,7 +912,7 @@ def check_pgdb_table(table, config):
 	uid_set = set()
 	for org, entry in table.items():
 		table_file = entry['_filename']
-		info(f'Checking table entry for {org}')
+		info(f'Checking PGDB table entry for {org}')
 		tax = entry['NCBI Taxon ID']
 		if not re_taxid.match(tax):
 			error(f'NCBI taxon IDs should be only digits; instead found {tax} for orgid {org} in {table_file}')
@@ -1118,12 +1067,14 @@ def as_lisp_symbol(l):
 	return l
 whitespace = re.compile(r'\s+')
 class PathwayTools:
-	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 60, x11 = None):
+	def __init__(this, exe, socket = '/tmp/ptools-socket', args = [], env = None, timeout = 60, x11 = None, no_load_pgdbs = False):
 		this.pt_exe = exe
 		this.pt_socket = socket
 		if '-lisp' not in args:
 			args += ['-lisp']
 		args += ['-no-patch-download']
+		if no_load_pgdbs:
+			args += ['-no-pgdbs']
 		# Under Singularity, environment variables aren't making it to pathway tools for some reason, so as a workaround we will set the socket path and tell it to start the api daemon manually using -eval. Also, there is an apparent bug in ptools 27.0 where spaces are not accepted in an -eval statement (it treats them as if they were EOF markers and stops reading), so as another workaround we use newlines instead
 		args += ['-eval', f'(progn (setf\n*socket-pathname*\n"{socket}")(start-external-access-daemon))']
 		this.pt_args = args
@@ -1238,7 +1189,7 @@ class PathwayTools:
 
 # Derived class of Pathway Tools instance that takes ptools info from a config dict (as returned by read_pipeline_config()), and also loads the PMN lisp functions unless requested not to do so by setting load_pmn_funs = False
 class PMNPathwayTools (PathwayTools):
-	def __init__(self, config, args = [], socket = None, env = None, load_pmn_funs = True, x11 = None):
+	def __init__(self, config, args = [], socket = None, env = None, load_pmn_funs = True, x11 = None, no_load_pgdbs = False):
 		exe = config['ptools-exe']
 		pmn_lisp = config['pmn-lisp-funs']
 		try:

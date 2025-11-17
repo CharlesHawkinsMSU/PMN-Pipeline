@@ -31,7 +31,7 @@ def generate_common_files(config, ptools, refs = ['Plant', 'Meta']):
 		pmn.info(f'Generating all-pathway list for {ref}Cyc: {all_pwy_file}')
 		ptools.so(ref)
 		#ref_vers = ptools.send_cmd('(kb-version (current-kb))').strip('"')
-		all_pwy_cmd = f'(to-file-or-stream "{all_pwy_file}" (format stream "#{ref}Cyc Version: ~A~%" (kb-version (current-kb))) (write-list stream (loop for p in (all-pathways) collect (get-frame-handle p))))'
+		all_pwy_cmd = f'(to-file-or-stream "{all_pwy_file}" (format stream "#{ref}Cyc Version: ~A~%" (kb-version (current-kb))) (write-list (loop for p in (all-pathways) collect (get-frame-handle p)) stream))'
 		ptools.send_cmd(all_pwy_cmd)
 	pmn.info(f'Generating ec_name.map.parsed')
 	ptools.so('ec-numbers')

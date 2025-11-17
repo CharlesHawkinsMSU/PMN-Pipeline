@@ -178,9 +178,9 @@
 
 (defun write-list (list where)
   "Writes list to where (a stream or filename), one per line. Elements of list should be of a type printable with \"~A\"."
-  (if (streamp stream)
-	(loop for elt in list do (format stream "~A~%" elt))
-	(with-open-file (fd stream :direction :output :if-exists :supersede)
+  (if (streamp where)
+	(loop for elt in list do (format where "~A~%" elt))
+	(with-open-file (fd where :direction :output :if-exists :supersede)
 	  (loop for elt in list do (format fd "~A~%" elt)))))
 
 (defmacro for-lines-in-file (file &rest cmds)

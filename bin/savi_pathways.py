@@ -3,7 +3,9 @@
 from sys import stdout, stderr
 import argparse as ap
 from os import path, listdir
+
 import pmn
+import util
 
 # List of savi files and the number of header lines in each one
 savi_files = {'AIPP.txt':2, 'CAPP.txt':4, 'CVP.txt':2, 'MANUAL.txt':2, 'MCP.txt':2, 'NPP.txt':2, 'UPP.txt':2}
@@ -30,7 +32,7 @@ def savi_pathways(savi_indir, pgdb_in, outfilename, exclude = []):
         savi_pathways = get_savi_pathways(savi_indir)
         if pgdb_in:
             pathways = set()
-            for pgdb_indir in pmn.as_list(pgdb_in):
+            for pgdb_indir in util.as_list(pgdb_in):
                 pgdb_pathways = get_pathways_for_pgdbs(pgdb_indir)
                 pathways.update(pgdb_pathways)
             pathways.difference_update(savi_pathways)
@@ -38,7 +40,7 @@ def savi_pathways(savi_indir, pgdb_in, outfilename, exclude = []):
         else:
             pathways = savi_pathways
             pmn.info('There are %s savi pathways'%len(pathways))
-        for exclude_dir in pmn.as_list(exclude):
+        for exclude_dir in util.as_list(exclude):
             exclude_pathways = get_pathways_for_pgdbs(exclude_dir)
             pathways.difference_update(exclude_pathways)
             pmn.info('There are %s non-excluded pathways'%len(pathways))

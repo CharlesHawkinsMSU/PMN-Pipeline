@@ -30,25 +30,6 @@
 		  (yn (reaction-balanced-p r))
 		  )))
 
-; Functions for mass-instantiating reactions
-(defun write-rxn-instantiation-table (where &key existing)
-  (let ((table (or existing (make-rxn-instantiation-table))))
-    (write-list-n
-      (cons '("Generic Rxn"
-	      "Valid Instances"
-	      "Invalid Instances"
-	      "Non-unique Instances"
-	      "Result Code")
-	    table)
-      '("~%" "	" "//" "=" ";")
-      where)))
-
-(defun make-rxn-instantiation-table ()
-  (loop for r in (all-class-rxns)
-	do (multiple-value-setq (a b c d)
-	     (generic-rxn-instantiation r :force-all-instantiations t))
-	collect (to-handles (list r a b c d))))
-
 (defparameter *ec-to-rxn* (make-hash-table))
 (defun rxns-with-cpds-on-opposite-sides (cpd1 cpd2)
   (let ((cpd1 (coerce-to-frame cpd1))
