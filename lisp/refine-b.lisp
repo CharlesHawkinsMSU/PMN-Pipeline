@@ -385,17 +385,18 @@
 	(setq ezrs-with-collisions (check-for-enzrxn-collisions :kb dest-kb :ref ref))
 	(rename-enzrxns ezrs-with-collisions :dry-run? dry-run?)
 	; Delete genes and proteins from the dest kb
-	(so ref-org)
+	;(so ref-org)
 	(format t "Deleting existing frames from ~ACYC: ~{~A~^, ~}~%" dest-org (set-to-list (set-union prots-from-kb genes-from-kb)))
 	(unless dry-run?
 	  (loop for prot being the hash-keys in prots-from-kb
 			when (valid-frame-p prot)
-			do (format t "Deleting prot ~A~%" prot)
-			and do (delete-frame-and-dependents prot))
+			do (format t "Deleting prot ~A (~A)~%" prot (type-of prot))
+			and do (delete-frame-and-dependents (get-frame-named prot :kb dest-kb)))
 	  (loop for gene being the hash-keys in genes-from-kb
 			when (valid-frame-p gene)
 			do (format t "Deleting gene ~A~%" gene)
-			and do (delete-frame-and-dependents gene)))
+			and do (delete-frame-and-dependents (get-frame-named gene :kb dest-kb))))
+	(so ref-org)
 	(unless dry-run?
 	  ; Export genes and proteins from the ref kb
 	  (with-open-file (tmpfile *refine-b-tmp-file* :direction :output :if-exists :supersede)
